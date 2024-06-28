@@ -1,12 +1,82 @@
 #![allow(clippy::type_complexity)]
 
-use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy::{input::mouse::MouseMotion, prelude::*, render::view::RenderLayers};
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    component::{Player, Velocity},
     resource::{Controls, MouseSensitivity},
+    ExpDecay,
 };
+
+pub const PLAYER_RENDER_LAYER: u8 = 1;
+
+/// m
+const PLAYER_HEIGHT: f32 = 1.75;
+/// m
+const PLAYER_RADIUS: f32 = 0.3;
+/// m
+const EYES_HEIGHT: f32 = 1.5;
+
+/// m/s
+const WALK_SPEED: f32 = 1.42;
+/// m/s
+const RUN_SPEED: f32 = WALK_SPEED * 2.;
+/// 1/second
+const DECAY: f32 = 5.;
+/// m/s
+const TERMINAL_VELOCITY: f32 = 50.;
+/// m/s
+const JUMP_SPEED: f32 = 3.;
+
+#[derive(Component)]
+pub struct Player;
+
+#[derive(Clone, Copy, Component)]
+pub struct Velocity(pub Vec3);
+
+impl Velocity {
+    pub fn exp_decay_horizontal(&mut self, target: Vec2, decay: f32, delta: f32) {
+        let Self(Vec3 { x, y: _, z }) = self;
+        *x = x.exp_decay(target.x, decay, delta);
+        *z = z.exp_decay(target.y, decay, delta);
+    }
+}
+
+pub fn setup(mut commands: Commands) {
+    commands
+        .spawn((
+            Player,
+            Velocity(Vec3::ZERO),
+            SpatialBundle::from_transform(Transform::from_xyz(0., PLAYER_HEIGHT / 2.0, 0.)),
+            RigidBody::KinematicPositionBased,
+            Collider::capsule(
+                Vec3::new(0., PLAYER_RADIUS, 0.),
+                Vec3::new(0., PLAYER_HEIGHT - PLAYER_RADIUS, 0.),
+                PLAYER_RADIUS,
+            ),
+            KinematicCharacterController {
+                custom_mass: Some(60.), // kg
+                apply_impulse_to_dynamic_bodies: true,
+                ..Default::default()
+            },
+            RenderLayers::layer(PLAYER_RENDER_LAYER),
+        ))
+        .with_children(|child| {
+            child.spawn((
+                Camera3dBundle {
+                    transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
+                    projection: PerspectiveProjection {
+                        fov: 90_f32.to_radians(),
+                        ..Default::default()
+                    }
+                    .into(),
+                    // dither: DebandDither::Enabled,
+                    ..Default::default()
+                },
+                RenderLayers::all().without(PLAYER_RENDER_LAYER),
+            ));
+        });
+}
 
 pub fn movement(
     time: Res<Time>,
@@ -22,15 +92,6 @@ pub fn movement(
         With<Player>,
     >,
 ) {
-    /// m/s
-    const WALK_SPEED: f32 = 1.42;
-    const RUN_SPEED: f32 = WALK_SPEED * 2.;
-    /// 1/second
-    const DECAY: f32 = 5.;
-    const TERMINAL_VELOCITY: f32 = 50.;
-    /// m/s
-    const JUMP_SPEED: f32 = 3.;
-
     let (mut velocity, mut controller, controller_output, transform) = player_query.single_mut();
     let rotation_angle = transform.rotation.to_euler(EulerRot::YXZ).0;
     let target_velocity = controls

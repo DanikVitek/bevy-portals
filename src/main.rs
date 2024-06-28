@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
 use bevy_portals::{
+    domain::{debug_info, input, player, scene},
     resource::{Controls, ControlsConfig, MouseSensitivity},
-    system::{debug_info, input, player, setup},
 };
 use bevy_rapier3d::prelude::*;
 
@@ -17,12 +17,7 @@ fn main() {
         .init_resource::<Controls>()
         .add_systems(
             Startup,
-            (
-                setup::player,
-                setup::scene,
-                setup::cursor_grab,
-                setup::debug_info,
-            ),
+            (player::setup, scene::setup, input::setup, debug_info::setup),
         )
         .add_systems(
             Update,

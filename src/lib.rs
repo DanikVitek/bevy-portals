@@ -1,10 +1,7 @@
-pub mod component;
+pub mod domain;
 pub mod resource;
-pub mod system;
 
 use bevy::prelude::*;
-
-pub const PLAYER_RENDER_LAYER: u8 = 1;
 
 pub trait ExpDecay {
     fn exp_decay(self, rhs: Self, decay: Self, dt: f32) -> Self;

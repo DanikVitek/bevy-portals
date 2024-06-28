@@ -5,6 +5,12 @@ use bevy::{
 
 use crate::resource::{Controls, ControlsConfig};
 
+pub fn setup(mut window_query: Query<&mut Window, With<PrimaryWindow>>) {
+    let mut primary_window = window_query.single_mut();
+    primary_window.cursor.grab_mode = CursorGrabMode::Locked;
+    primary_window.cursor.visible = false;
+}
+
 pub fn input_mappings(
     input: Res<ButtonInput<KeyCode>>,
     controls_config: Res<ControlsConfig>,
