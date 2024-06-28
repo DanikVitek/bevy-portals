@@ -1,8 +1,10 @@
+pub mod component;
 pub mod resource;
 pub mod system;
-pub mod component;
 
 use bevy::prelude::*;
+
+pub const PLAYER_RENDER_LAYER: u8 = 1;
 
 pub trait ExpDecay {
     fn exp_decay(self, rhs: Self, decay: Self, dt: f32) -> Self;
@@ -15,7 +17,12 @@ impl ExpDecay for f32 {
 }
 
 impl ExpDecay for Vec2 {
-    fn exp_decay(self, rhs: Self, decay: Self, dt: f32) -> Self {
+    fn exp_decay(
+        self,        // m/s
+        rhs: Self,   // m/s
+        decay: Self, // 1/s
+        dt: f32,     // s
+    ) -> Self {
         rhs + (self - rhs) * (-decay * dt).exp()
     }
 }

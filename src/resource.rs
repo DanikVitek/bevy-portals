@@ -9,6 +9,8 @@ pub struct ControlsConfig {
     pub down: KeyCode,
     pub left: KeyCode,
     pub right: KeyCode,
+    pub run: KeyCode,
+    pub jump: KeyCode,
 }
 
 impl Default for ControlsConfig {
@@ -18,7 +20,18 @@ impl Default for ControlsConfig {
             down: KeyCode::KeyS,
             left: KeyCode::KeyA,
             right: KeyCode::KeyD,
+            run: KeyCode::ControlLeft,
+            jump: KeyCode::Space,
         }
+    }
+}
+
+#[derive(Resource)]
+pub struct MouseSensitivity(pub f32);
+
+impl Default for MouseSensitivity {
+    fn default() -> Self {
+        Self(1.0)
     }
 }
 
@@ -28,6 +41,8 @@ pub struct Controls {
     pub down: bool,
     pub left: bool,
     pub right: bool,
+    pub run: bool,
+    pub jump: bool,
 }
 
 impl Controls {

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy_editor_pls::EditorPlugin;
 use bevy_portals::{
-    resource::{Controls, ControlsConfig},
-    system::{input::*, player::*, setup::*},
+    resource::{Controls, ControlsConfig, MouseSensitivity},
+    system::{debug_info, input, player, setup},
 };
 use bevy_rapier3d::prelude::*;
 
@@ -13,8 +13,26 @@ fn main() {
         .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(EditorPlugin::default())
         .init_resource::<ControlsConfig>()
+        .init_resource::<MouseSensitivity>()
         .init_resource::<Controls>()
-        .add_systems(Startup, (setup_player, setup_physics, cursor_grab))
-        .add_systems(Update, ((input_mappings, movement).chain(), rotation))
+        .add_systems(
+            Startup,
+            (
+                setup::player,
+                setup::scene,
+                setup::cursor_grab,
+                setup::debug_info,
+            ),
+        )
+        .add_systems(
+            Update,
+            (
+                (input::input_mappings, player::movement).chain(),
+                player::rotation,
+                debug_info::player_is_grounded,
+                input::cursor_grab,
+                input::cursor_ungrab,
+            ),
+        )
         .run();
 }
