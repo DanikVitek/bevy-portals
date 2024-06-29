@@ -1,6 +1,8 @@
 #![allow(clippy::type_complexity)]
 
 use bevy::{input::mouse::MouseMotion, prelude::*, render::view::RenderLayers};
+#[cfg(feature = "debug")]
+use bevy_editor_pls::default_windows::cameras::EDITOR_RENDER_LAYER;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
@@ -9,13 +11,14 @@ use crate::{
 };
 
 pub const PLAYER_RENDER_LAYER: u8 = 1;
+pub const PLAYER_COLLISION_GROUP: Group = Group::GROUP_2;
 
 /// m
 const PLAYER_HEIGHT: f32 = 1.75;
 /// m
 const PLAYER_RADIUS: f32 = 0.3;
 /// m
-const EYES_HEIGHT: f32 = 1.5;
+const EYES_HEIGHT: f32 = PLAYER_HEIGHT - 2. * PLAYER_RADIUS;
 
 /// m/s
 const WALK_SPEED: f32 = 1.42;
@@ -26,10 +29,16 @@ const DECAY: f32 = 5.;
 /// m/s
 const TERMINAL_VELOCITY: f32 = 50.;
 /// m/s
-const JUMP_SPEED: f32 = 3.;
+const JUMP_SPEED: f32 = 5.;
 
 #[derive(Component)]
 pub struct Player;
+
+#[derive(Component)]
+pub struct Grounded(pub bool);
+
+#[derive(Component)]
+pub struct GroundSensor;
 
 #[derive(Clone, Copy, Component)]
 pub struct Velocity(pub Vec3);
@@ -42,16 +51,30 @@ impl Velocity {
     }
 }
 
-pub fn setup(mut commands: Commands) {
+pub fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     commands
         .spawn((
+            Name::new("Player"),
             Player,
+            Grounded(false),
             Velocity(Vec3::ZERO),
-            SpatialBundle::from_transform(Transform::from_xyz(0., PLAYER_HEIGHT / 2.0, 0.)),
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(Capsule3d::new(
+                    PLAYER_RADIUS,
+                    PLAYER_HEIGHT - 2. * PLAYER_RADIUS,
+                ))),
+                material: materials.add(Color::CYAN),
+                transform: Transform::from_xyz(0., PLAYER_HEIGHT, 0.),
+                ..Default::default()
+            },
             RigidBody::KinematicPositionBased,
             Collider::capsule(
-                Vec3::new(0., PLAYER_RADIUS, 0.),
-                Vec3::new(0., PLAYER_HEIGHT - PLAYER_RADIUS, 0.),
+                Vec3::new(0., PLAYER_RADIUS - PLAYER_HEIGHT / 2., 0.),
+                Vec3::new(0., PLAYER_HEIGHT / 2. - PLAYER_RADIUS, 0.),
                 PLAYER_RADIUS,
             ),
             KinematicCharacterController {
@@ -59,21 +82,53 @@ pub fn setup(mut commands: Commands) {
                 apply_impulse_to_dynamic_bodies: true,
                 ..Default::default()
             },
+            CollisionGroups::new(PLAYER_COLLISION_GROUP, Group::all()),
+            #[cfg(feature = "debug")]
+            RenderLayers::from_layers(&[PLAYER_RENDER_LAYER, EDITOR_RENDER_LAYER]),
+            #[cfg(not(feature = "debug"))]
             RenderLayers::layer(PLAYER_RENDER_LAYER),
         ))
         .with_children(|child| {
             child.spawn((
+                Name::new("FPS Camera"),
                 Camera3dBundle {
                     transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
                     projection: PerspectiveProjection {
-                        fov: 90_f32.to_radians(),
+                        fov: std::f32::consts::FRAC_PI_2,
                         ..Default::default()
                     }
                     .into(),
                     // dither: DebandDither::Enabled,
                     ..Default::default()
                 },
-                RenderLayers::all().without(PLAYER_RENDER_LAYER),
+                #[cfg(feature = "debug")]
+                const {
+                    RenderLayers::all()
+                        .without(PLAYER_RENDER_LAYER)
+                        .without(EDITOR_RENDER_LAYER)
+                },
+                #[cfg(not(feature = "debug"))]
+                const { RenderLayers::all().without(PLAYER_RENDER_LAYER) },
+            ));
+
+            const GROUND_SENSOR_HEIGHT: f32 = 0.1;
+            child.spawn((
+                Name::new("Ground Sensor"),
+                GroundSensor,
+                Collider::cylinder(GROUND_SENSOR_HEIGHT / 2., PLAYER_RADIUS),
+                Sensor,
+                TransformBundle::from_transform(Transform::from_xyz(
+                    0.,
+                    -(PLAYER_HEIGHT / 2. + GROUND_SENSOR_HEIGHT / 3.),
+                    0.,
+                )),
+                CollisionGroups::new(
+                    PLAYER_COLLISION_GROUP,
+                    Group::all().difference(PLAYER_COLLISION_GROUP),
+                ),
+                SolverGroups::new(Group::empty(), Group::empty()),
+                ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
+                // Ccd::enabled(),
             ));
         });
 }
@@ -82,26 +137,35 @@ pub fn movement(
     time: Res<Time>,
     controls: Res<Controls>,
     rapier_config: Res<RapierConfiguration>,
-    mut player_query: Query<
+    rapier_context: Res<RapierContext>,
+    mut player_q: Query<
         (
             &mut Velocity,
             &mut KinematicCharacterController,
             Option<&KinematicCharacterControllerOutput>,
             &Transform,
+            &mut Grounded,
         ),
         With<Player>,
     >,
+    ground_sensor_q: Query<Entity, With<GroundSensor>>,
 ) {
-    let (mut velocity, mut controller, controller_output, transform) = player_query.single_mut();
-    let rotation_angle = transform.rotation.to_euler(EulerRot::YXZ).0;
+    let (mut velocity, mut controller, controller_output, player_transform, mut grounded) =
+        player_q.single_mut();
+    let ground_sensor = ground_sensor_q.single();
+
+    let rotation_angle = player_transform.rotation.to_euler(EulerRot::YXZ).0;
     let target_velocity = controls
         .to_direction()
         .rotate(Vec2::new(rotation_angle.cos(), -rotation_angle.sin()))
         * (if controls.run { RUN_SPEED } else { WALK_SPEED });
 
     velocity.exp_decay_horizontal(target_velocity, DECAY, time.delta_seconds());
-    let grounded = controller_output.map(|o| o.grounded).unwrap_or_default();
-    velocity.0.y = if grounded {
+    grounded.0 = controller_output.map(|o| o.grounded).unwrap_or_default()
+        || rapier_context
+            .intersection_pairs_with(ground_sensor)
+            .any(|(_, _, intersect)| intersect);
+    velocity.0.y = if grounded.0 {
         if controls.jump {
             JUMP_SPEED
         } else {

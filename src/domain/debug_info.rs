@@ -1,7 +1,6 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
-use super::player::Player;
+use super::player::{Grounded, Player};
 
 #[derive(Component)]
 pub struct DebugInfoRoot;
@@ -43,12 +42,12 @@ pub fn setup(mut commands: Commands) {
 }
 
 pub fn player_is_grounded(
-    player_query: Query<&KinematicCharacterControllerOutput, With<Player>>,
-    mut debug_info_query: Query<&mut Text, With<DebugInfoText>>,
+    player_q: Query<&Grounded, With<Player>>,
+    mut debug_info_q: Query<&mut Text, With<DebugInfoText>>,
 ) {
-    let Ok(controller_output) = player_query.get_single() else {
+    let Ok(Grounded(grounded)) = player_q.get_single() else {
         return;
     };
-    let mut debug_info_text = debug_info_query.single_mut();
-    debug_info_text.sections[1].value = controller_output.grounded.to_string();
+    let mut debug_info_text = debug_info_q.single_mut();
+    debug_info_text.sections[1].value = grounded.to_string();
 }

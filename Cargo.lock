@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "ab_glyph"
-version = "0.2.26"
+version = "0.2.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e53b0a3d5760cd2ba9b787ae0c6440ad18ee294ff71b05e3381c900a7d16cfd"
+checksum = "1c3a1cbc201cc13ed06cf875efb781f2249b3677f5c74571b67d817877f9d697"
 dependencies = [
  "ab_glyph_rasterizer",
  "owned_ttf_parser",
@@ -359,9 +359,43 @@ name = "bevy-portals"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy-tnua",
+ "bevy-tnua-rapier3d",
  "bevy_editor_pls",
  "bevy_rapier3d",
+ "cfg-if",
  "uom",
+]
+
+[[package]]
+name = "bevy-tnua"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42c822e670249db5cf0e3436c9e69c0f9ad68aa87f072164c806e72202619fd7"
+dependencies = [
+ "bevy",
+ "bevy-tnua-physics-integration-layer",
+ "thiserror",
+]
+
+[[package]]
+name = "bevy-tnua-physics-integration-layer"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3924097b24a5411d31de920521d0703be1db6d12c67156c7149d194e3e2ddf68"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "bevy-tnua-rapier3d"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41ab0070abd0fb1d2b70cf7dabc810161756be77d0b9e13d72f1f068c74939f8"
+dependencies = [
+ "bevy",
+ "bevy-tnua-physics-integration-layer",
+ "bevy_rapier3d",
 ]
 
 [[package]]
@@ -1390,9 +1424,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.101"
+version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac367972e516d45567c7eafc73d24e1c193dcf200a8d94e9db7b3d38b349572d"
+checksum = "779e6b7d17797c0b42023d417228c02889300190e700cb074c3438d9c541d332"
 dependencies = [
  "jobserver",
  "libc",
@@ -2608,9 +2642,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.21"
+version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "mach2"
