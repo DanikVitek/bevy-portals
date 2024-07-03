@@ -1,11 +1,17 @@
 use bevy::{ecs::query::QuerySingleError, prelude::*};
+use bevy_rapier3d::{
+    geometry::{CollisionGroups, Group},
+    pipeline::QueryFilter,
+    plugin::RapierContext,
+};
 use itertools::Itertools;
 
-use crate::resource::Controls;
+use crate::{domain::player::PLAYER_COLLISION_GROUP, resource::Controls};
 
 use super::player::PlayerCamera;
 
 pub const DEFAULT_PORTAL_SIZE: Vec2 = Vec2::new(1., 2.);
+pub const PORTAL_RAY_COLLISION_GROUP: Group = Group::GROUP_5;
 
 #[derive(Debug, Default, Component, Reflect)]
 #[reflect(Component)]
@@ -50,6 +56,7 @@ pub fn shoot_portal(
     mut commands: Commands,
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
+    rapier_ctx: Res<RapierContext>,
 ) {
     if !controls.shoot1 && !controls.shoot2 {
         return;
@@ -60,47 +67,60 @@ pub fn shoot_portal(
     let (camera, camera_transform) = camera_q.single();
     let viewport_center = camera.logical_viewport_size().unwrap() / 2.;
 
-    let Some(ray) = camera.viewport_to_world(camera_transform, viewport_center) else {
+    let (ray_origin, ray_dir, max_toi) = {
+        // inlined body of `Camera::viewport_to_world`
+        let mut viewport_position = viewport_center;
+        let Some(target_size) = camera.logical_viewport_size() else {
+            return;
+        };
+        // Flip the Y co-ordinate origin from the top to the bottom.
+        viewport_position.y = target_size.y - viewport_position.y;
+        let ndc = viewport_position * 2. / target_size - Vec2::ONE;
+        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
+        let world_near_plane = ndc_to_world.project_point3(ndc.extend(1.));
+        // Using EPSILON because an ndc with Z = 0 returns NaNs.
+        let world_far_plane = ndc_to_world.project_point3(ndc.extend(f32::EPSILON));
+
+        let ray_line = world_far_plane - world_near_plane;
+        (world_near_plane, ray_line.normalize(), ray_line.length())
+    };
+
+    let Some((entity, distance)) = rapier_ctx.cast_ray(
+        ray_origin,
+        ray_dir,
+        max_toi,
+        true,
+        QueryFilter::new().groups(CollisionGroups::new(
+            PORTAL_RAY_COLLISION_GROUP,
+            PLAYER_COLLISION_GROUP.complement() & PORTAL_RAY_COLLISION_GROUP.complement(),
+        )),
+    ) else {
         return;
     };
 
-    println!("Got camera ray: {ray:?}\n");
-
-    let Some(portal_transform) = portal_surface_q
-        .iter()
-        .filter_map(|(transform, &PortalSurface { size })| {
-            ray.intersect_plane(transform.translation(), Plane3d::new(transform.forward()))
-                .inspect(|distance| {
-                    println!("Intersect with plane {transform:?} at distance {distance}\n")
-                })
-                .and_then(|distance| {
-                    let point = ray.get_point(distance);
-                    println!("Intersect with plane {transform:?} at point {point}\n");
-                    let point_on_plane = transform.affine().inverse().transform_point3(point);
-                    println!("Point on the plane: {point_on_plane}\n");
-
-                    let half_size = size * transform.to_scale_rotation_translation().0.xy() / 2.;
-
-                    (point_on_plane.x.abs() < half_size.x && point_on_plane.y.abs() < half_size.y)
-                        .then(|| {
-                            let mut portal_transform = transform.compute_transform();
-                            let clamped_point =
-                                transform.affine().transform_point3(point_on_plane.clamp(
-                                    (-half_size + DEFAULT_PORTAL_SIZE / 2.).extend(0.),
-                                    (half_size - DEFAULT_PORTAL_SIZE / 2.).extend(0.),
-                                ));
-                            portal_transform.translation +=
-                                (clamped_point - transform.translation()) + transform.back() * 0.01;
-                            (distance, portal_transform)
-                        })
-                })
-        })
-        .sorted_unstable_by(|(distance1, _), (distance2, _)| distance1.total_cmp(distance2))
-        .map(|(_, t)| t)
-        .next()
-    else {
+    let Ok((transform, &PortalSurface { size })) = portal_surface_q.get(entity) else {
         return;
     };
+
+    let point = ray_origin + ray_dir * distance;
+    println!("Intersect with plane {transform:?} at point {point}\n");
+
+    let point_on_plane = transform.affine().inverse().transform_point3(point);
+    println!("Point on the plane: {point_on_plane}\n");
+
+    let half_size = size * transform.to_scale_rotation_translation().0.xy() / 2.;
+
+    if !(point_on_plane.x.abs() < half_size.x && point_on_plane.y.abs() < half_size.y) {
+        return;
+    }
+
+    let mut portal_transform = transform.compute_transform();
+    let clamped_point = transform.affine().transform_point3(point_on_plane.clamp(
+        (-half_size + DEFAULT_PORTAL_SIZE / 2.).extend(0.),
+        (half_size - DEFAULT_PORTAL_SIZE / 2.).extend(0.),
+    ));
+    portal_transform.translation +=
+        (clamped_point - transform.translation()) + transform.back() * 0.01;
 
     if controls.shoot1 {
         println!("Spawning portal 1");

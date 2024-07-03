@@ -21,11 +21,11 @@ const PLAYER_RADIUS: f32 = 0.3;
 const EYES_HEIGHT: f32 = PLAYER_HEIGHT - 2. * PLAYER_RADIUS;
 
 /// m/s
-const WALK_SPEED: f32 = 1.42;
+const WALK_SPEED: f32 = 1.7;
 /// m/s
 const RUN_SPEED: f32 = WALK_SPEED * 2.;
 /// 1/second
-const DECAY: f32 = 5.;
+const DECAY: f32 = 10.;
 /// m/s
 const TERMINAL_VELOCITY: f32 = 50.;
 /// m/s
@@ -144,10 +144,7 @@ pub fn setup(
                     -(PLAYER_HEIGHT / 2. + GROUND_SENSOR_HEIGHT / 3.),
                     0.,
                 )),
-                CollisionGroups::new(
-                    PLAYER_COLLISION_GROUP,
-                    Group::all().difference(PLAYER_COLLISION_GROUP),
-                ),
+                CollisionGroups::new(PLAYER_COLLISION_GROUP, PLAYER_COLLISION_GROUP.complement()),
                 SolverGroups::new(Group::empty(), Group::empty()),
                 ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
             ));

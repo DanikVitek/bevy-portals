@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use super::portal::PortalSurface;
+use super::portal::{PortalSurface, PORTAL_RAY_COLLISION_GROUP};
 
 pub const STATIC_COLLISION_GROUP: Group = Group::GROUP_1;
 pub const DYNAMIC_COLLISION_GROUP: Group = Group::GROUP_3;
+pub const PORTAL_SURFACE_COLLISION_GROUP: Group = Group::GROUP_4;
 
 pub fn setup(
     mut commands: Commands,
@@ -60,6 +61,9 @@ pub fn setup(
                     rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
                     ..Default::default()
                 }),
+                Collider::cuboid(2., 1., 0.01),
+                Sensor,
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
             ));
 
             child.spawn((
@@ -71,6 +75,9 @@ pub fn setup(
                     rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 * 3.),
                     ..Default::default()
                 }),
+                Collider::cuboid(2., 1., 0.01),
+                Sensor,
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
             ));
         });
 
@@ -98,6 +105,9 @@ pub fn setup(
                     rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
                     ..Default::default()
                 }),
+                Collider::cuboid(2., 1., 0.01),
+                Sensor,
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
             ));
 
             child.spawn((
@@ -109,6 +119,9 @@ pub fn setup(
                     rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 * 3.),
                     ..Default::default()
                 }),
+                Collider::cuboid(2., 1., 0.01),
+                Sensor,
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
             ));
         });
 
@@ -121,7 +134,7 @@ pub fn setup(
             PbrBundle {
                 mesh: meshes.add(Cuboid::new(0.2, 2., 4.)),
                 material: materials.add(Color::GRAY),
-                transform: Transform::from_xyz(25., 3., 15.).with_rotation(
+                transform: Transform::from_xyz(20., 3., 15.).with_rotation(
                     Quat::from_rotation_y(std::f32::consts::FRAC_PI_4)
                         * Quat::from_rotation_x(45_f32.to_radians())
                         * Quat::from_rotation_z(45_f32.to_radians()),
@@ -139,6 +152,9 @@ pub fn setup(
                     rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
                     ..Default::default()
                 }),
+                Collider::cuboid(2., 1., 0.01),
+                Sensor,
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
             ));
 
             child.spawn((
@@ -150,6 +166,9 @@ pub fn setup(
                     rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 * 3.),
                     ..Default::default()
                 }),
+                Collider::cuboid(2., 1., 0.01),
+                Sensor,
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
             ));
         });
 
