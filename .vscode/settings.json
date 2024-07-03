@@ -2,9 +2,12 @@
     "cSpell.words": [
         "Deband",
         "fullscreen",
+        "Gltf",
         "halfspace",
+        "itertools",
         "linvel",
         "ungrab",
-        "Vect"
+        "Vect",
+        "wgsl"
     ]
 }

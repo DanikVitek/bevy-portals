@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use super::player::{Grounded, Player};
+use super::{
+    player::{Grounded, Player},
+    portal::{Portal1, Portal2, PortalSurface},
+};
 
 #[derive(Component)]
 pub struct DebugInfoRoot;
@@ -50,4 +53,32 @@ pub fn player_is_grounded(
     };
     let mut debug_info_text = debug_info_q.single_mut();
     debug_info_text.sections[1].value = grounded.to_string();
+}
+
+pub fn portal_surface_gizmo(
+    portal_surface_q: Query<(&GlobalTransform, &PortalSurface)>,
+    mut gizmos: Gizmos,
+) {
+    for (transform, PortalSurface { size }) in portal_surface_q.iter() {
+        let (scale, rotation, translation) = transform.to_scale_rotation_translation();
+        gizmos.rect(translation, rotation, *size * scale.xy(), Color::WHITE);
+        gizmos.ray(translation, transform.back(), Color::WHITE);
+    }
+}
+
+pub fn portal_gizmo(
+    portal1_q: Query<&GlobalTransform, With<Portal1>>,
+    portal2_q: Query<&GlobalTransform, With<Portal2>>,
+    mut gizmos: Gizmos,
+) {
+    for transform in portal1_q.iter() {
+        let (scale, rotation, translation) = transform.to_scale_rotation_translation();
+        gizmos.rect(translation, rotation, Vec2::new(1., 2.) * scale.xy(), Color::BLUE);
+        gizmos.ray(translation, transform.back(), Color::BLUE);
+    }
+    for transform in portal2_q.iter() {
+        let (scale, rotation, translation) = transform.to_scale_rotation_translation();
+        gizmos.rect(translation, rotation, Vec2::new(1., 2.) * scale.xy(), Color::ORANGE);
+        gizmos.ray(translation, transform.back(), Color::ORANGE);
+    }
 }

@@ -16,13 +16,28 @@ opt-level = 3
 
 [features]
 default = ["debug"]
-debug = ["bevy/dynamic_linking", "dep:bevy_editor_pls", "bevy_rapier3d/debug-render-3d"]
+debug = [
+    "bevy/dynamic_linking",
+    "dep:bevy_editor_pls",
+    "bevy_rapier3d/debug-render-3d",
+]
 
 [dependencies]
 bevy = { version = "0.13.2" }
 bevy-tnua = { version = "0.18.0" }
 bevy-tnua-rapier3d = { version = "0.6.0" }
 bevy_editor_pls = { version = "0.8.1", optional = true }
-bevy_rapier3d = { version = "0.26.0", features = ["dim3", "async-collider", "parallel", "simd-stable"], default-features = false}
+bevy_gltf_blueprints = "0.10.2"
+bevy_gltf_components = "0.5.1"
+bevy_gltf_save_load = "0.4.1"
+bevy_rapier3d = { version = "0.26.0", features = [
+    "dim3",
+    "async-collider",
+    "parallel",
+    "simd-stable",
+], default-features = false }
+bevy_registry_export = "0.3.1"
 cfg-if = "1.0.0"
-uom = "0.36.0"
+itertools = "0.13.0"
+rayon = "1.10.0"
+# uom = "0.36.0"

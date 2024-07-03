@@ -31,16 +31,20 @@ const TERMINAL_VELOCITY: f32 = 50.;
 /// m/s
 const JUMP_SPEED: f32 = 5.;
 
-#[derive(Component)]
+#[derive(Debug, Default, Component, Reflect)]
+#[reflect(Component)]
 pub struct Player;
 
-#[derive(Component)]
+#[derive(Default, Component, Reflect)]
+#[reflect(Component, Default)]
 pub struct Grounded(pub bool);
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct GroundSensor;
 
-#[derive(Clone, Copy, Component)]
+#[derive(Clone, Copy, Default, Component, Reflect)]
+#[reflect(Component, Default)]
 pub struct Velocity(pub Vec3);
 
 impl Velocity {
@@ -48,6 +52,23 @@ impl Velocity {
         let Self(Vec3 { x, y: _, z }) = self;
         *x = x.exp_decay(target.x, decay, delta);
         *z = z.exp_decay(target.y, decay, delta);
+    }
+}
+
+#[derive(Debug, Default, Component, Reflect)]
+#[reflect(Component, Default)]
+pub struct PlayerCamera;
+
+pub(super) trait AppExt {
+    fn register_player_types(&mut self) -> &mut Self;
+}
+
+impl AppExt for App {
+    fn register_player_types(&mut self) -> &mut Self {
+        self.register_type::<Player>()
+            .register_type::<Grounded>()
+            .register_type::<GroundSensor>()
+            .register_type::<Velocity>()
     }
 }
 
@@ -60,8 +81,8 @@ pub fn setup(
         .spawn((
             Name::new("Player"),
             Player,
-            Grounded(false),
-            Velocity(Vec3::ZERO),
+            Grounded::default(),
+            Velocity::default(),
             PbrBundle {
                 mesh: meshes.add(Mesh::from(Capsule3d::new(
                     PLAYER_RADIUS,
@@ -91,6 +112,7 @@ pub fn setup(
         .with_children(|child| {
             child.spawn((
                 Name::new("FPS Camera"),
+                PlayerCamera,
                 Camera3dBundle {
                     transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
                     projection: PerspectiveProjection {
@@ -128,7 +150,6 @@ pub fn setup(
                 ),
                 SolverGroups::new(Group::empty(), Group::empty()),
                 ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-                // Ccd::enabled(),
             ));
         });
 }
@@ -183,14 +204,11 @@ pub fn rotation(
     time: Res<Time>,
     sensitivity: Res<MouseSensitivity>,
     mut input: EventReader<MouseMotion>,
-    mut player_query: Query<(Entity, &mut Transform), (With<Player>, Without<Camera3d>)>,
-    mut camera_query: Query<(&Parent, &mut Transform), (With<Camera3d>, Without<Player>)>,
+    mut player_q: Query<&mut Transform, (With<Player>, Without<PlayerCamera>)>,
+    mut camera_q: Query<&mut Transform, (With<PlayerCamera>, Without<Player>)>,
 ) {
-    let (player, mut player_transform) = player_query.single_mut();
-    let mut camera_transform = camera_query
-        .iter_mut()
-        .find_map(|(parent, transform)| (parent.get() == player).then_some(transform))
-        .unwrap();
+    let mut player_transform = player_q.single_mut();
+    let mut camera_transform = camera_q.single_mut();
     let (mut camera_pitch, _, _) = camera_transform.rotation.to_euler(EulerRot::XYZ);
 
     for MouseMotion {
