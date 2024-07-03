@@ -10,14 +10,22 @@ pub enum Control {
 }
 
 impl Control {
-    pub fn pressed(self, input_key_code: &ButtonInput<KeyCode>, input_mouse_button: &ButtonInput<MouseButton>) -> bool {
+    pub fn pressed(
+        self,
+        input_key_code: &ButtonInput<KeyCode>,
+        input_mouse_button: &ButtonInput<MouseButton>,
+    ) -> bool {
         match self {
             Control::KeyCode(key_code) => input_key_code.pressed(key_code),
             Control::MouseButton(mouse_button) => input_mouse_button.pressed(mouse_button),
         }
     }
 
-    pub fn just_pressed(self, input_key_code: &ButtonInput<KeyCode>, input_mouse_button: &ButtonInput<MouseButton>) -> bool {
+    pub fn just_pressed(
+        self,
+        input_key_code: &ButtonInput<KeyCode>,
+        input_mouse_button: &ButtonInput<MouseButton>,
+    ) -> bool {
         match self {
             Control::KeyCode(key_code) => input_key_code.just_pressed(key_code),
             Control::MouseButton(mouse_button) => input_mouse_button.just_pressed(mouse_button),

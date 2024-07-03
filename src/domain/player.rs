@@ -93,11 +93,7 @@ pub fn setup(
                 ..Default::default()
             },
             RigidBody::KinematicPositionBased,
-            Collider::capsule(
-                Vec3::new(0., PLAYER_RADIUS - PLAYER_HEIGHT / 2., 0.),
-                Vec3::new(0., PLAYER_HEIGHT / 2. - PLAYER_RADIUS, 0.),
-                PLAYER_RADIUS,
-            ),
+            Collider::capsule_y(PLAYER_HEIGHT / 2. - PLAYER_RADIUS, PLAYER_RADIUS),
             KinematicCharacterController {
                 custom_mass: Some(60.), // kg
                 apply_impulse_to_dynamic_bodies: true,
@@ -116,7 +112,7 @@ pub fn setup(
                 Camera3dBundle {
                     transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
                     projection: PerspectiveProjection {
-                        fov: std::f32::consts::FRAC_PI_2,
+                        fov: std::f32::consts::FRAC_PI_2, // 90 degrees
                         ..Default::default()
                     }
                     .into(),

@@ -73,12 +73,22 @@ pub fn portal_gizmo(
 ) {
     for transform in portal1_q.iter() {
         let (scale, rotation, translation) = transform.to_scale_rotation_translation();
-        gizmos.rect(translation, rotation, Vec2::new(1., 2.) * scale.xy(), Color::BLUE);
+        gizmos.rect(
+            translation,
+            rotation,
+            Vec2::new(1., 2.) * scale.xy(),
+            Color::BLUE,
+        );
         gizmos.ray(translation, transform.back(), Color::BLUE);
     }
     for transform in portal2_q.iter() {
         let (scale, rotation, translation) = transform.to_scale_rotation_translation();
-        gizmos.rect(translation, rotation, Vec2::new(1., 2.) * scale.xy(), Color::ORANGE);
+        gizmos.rect(
+            translation,
+            rotation,
+            Vec2::new(1., 2.) * scale.xy(),
+            Color::ORANGE,
+        );
         gizmos.ray(translation, transform.back(), Color::ORANGE);
     }
 }

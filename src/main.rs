@@ -1,9 +1,15 @@
-use bevy::{prelude::*, window::WindowResolution};
+use bevy::prelude::*;
+#[cfg(feature = "debug")]
+use bevy::window::WindowResolution;
 #[cfg(feature = "debug")]
 use bevy_editor_pls::EditorPlugin;
 use bevy_gltf_components::ComponentsFromGltfPlugin;
 use bevy_portals::{
-    domain::{debug_info, input, player, portal, scene, ui::{self, CrosshairMaterial}, AppExt},
+    domain::{
+        debug_info, input, player, portal, scene,
+        ui::{self, CrosshairMaterial},
+        AppExt,
+    },
     resource::{Controls, ControlsConfig, MouseSensitivity},
 };
 use bevy_rapier3d::prelude::*;
@@ -16,13 +22,13 @@ fn main() {
             RapierPhysicsPlugin::<NoUserData>::default(),
             #[cfg(feature = "debug")]
             RapierDebugRenderPlugin::default().disabled(),
-            // #[cfg(feature = "debug")]
-            // EditorPlugin::default().in_new_window(Window {
-            //     resolution: WindowResolution::new(1920.0, 1080.0),
-            //     position: WindowPosition::Centered(MonitorSelection::Index(1)),
-            //     decorations: true,
-            //     ..Default::default()
-            // }),
+            #[cfg(feature = "debug")]
+            EditorPlugin::default().in_new_window(Window {
+                resolution: WindowResolution::new(1920.0, 1080.0),
+                position: WindowPosition::Centered(MonitorSelection::Index(1)),
+                decorations: true,
+                ..Default::default()
+            }),
             ExportRegistryPlugin::default(),
             ComponentsFromGltfPlugin::default(),
         ))

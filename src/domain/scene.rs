@@ -63,7 +63,7 @@ pub fn setup(
                 }),
                 Collider::cuboid(2., 1., 0.01),
                 Sensor,
-                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP),
             ));
 
             child.spawn((
@@ -77,7 +77,7 @@ pub fn setup(
                 }),
                 Collider::cuboid(2., 1., 0.01),
                 Sensor,
-                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP),
             ));
         });
 
@@ -107,7 +107,7 @@ pub fn setup(
                 }),
                 Collider::cuboid(2., 1., 0.01),
                 Sensor,
-                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP),
             ));
 
             child.spawn((
@@ -121,7 +121,7 @@ pub fn setup(
                 }),
                 Collider::cuboid(2., 1., 0.01),
                 Sensor,
-                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP),
             ));
         });
 
@@ -154,7 +154,7 @@ pub fn setup(
                 }),
                 Collider::cuboid(2., 1., 0.01),
                 Sensor,
-                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP),
             ));
 
             child.spawn((
@@ -168,7 +168,7 @@ pub fn setup(
                 }),
                 Collider::cuboid(2., 1., 0.01),
                 Sensor,
-                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP)
+                CollisionGroups::new(PORTAL_SURFACE_COLLISION_GROUP, PORTAL_RAY_COLLISION_GROUP),
             ));
         });
 

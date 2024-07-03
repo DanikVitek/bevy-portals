@@ -4,7 +4,6 @@ use bevy_rapier3d::{
     pipeline::QueryFilter,
     plugin::RapierContext,
 };
-use itertools::Itertools;
 
 use crate::{domain::player::PLAYER_COLLISION_GROUP, resource::Controls};
 
@@ -25,6 +24,12 @@ pub struct Portal {
     pair: Option<Entity>,
 }
 
+pub trait PortalKind: Component {
+    type Pair: PortalKind<Pair = Self>;
+
+    fn color() -> Color;
+}
+
 #[derive(Debug, Default, Component, Reflect)]
 #[reflect(Component)]
 pub struct Portal1;
@@ -32,6 +37,22 @@ pub struct Portal1;
 #[derive(Debug, Default, Component, Reflect)]
 #[reflect(Component)]
 pub struct Portal2;
+
+impl PortalKind for Portal1 {
+    type Pair = Portal2;
+
+    fn color() -> Color {
+        Color::rgb(0.6, 0.7, 0.8)
+    }
+}
+
+impl PortalKind for Portal2 {
+    type Pair = Portal1;
+
+    fn color() -> Color {
+        Color::rgb(0.8, 0.7, 0.6)
+    }
+}
 
 pub(super) trait AppExt {
     fn register_portal_types(&mut self) -> &mut Self;
@@ -105,20 +126,25 @@ pub fn shoot_portal(
     let point = ray_origin + ray_dir * distance;
     println!("Intersect with plane {transform:?} at point {point}\n");
 
-    let point_on_plane = transform.affine().inverse().transform_point3(point);
+    let point_on_plane = transform.affine().inverse().transform_point3(point).xy();
     println!("Point on the plane: {point_on_plane}\n");
 
     let half_size = size * transform.to_scale_rotation_translation().0.xy() / 2.;
 
-    if !(point_on_plane.x.abs() < half_size.x && point_on_plane.y.abs() < half_size.y) {
+    if point_on_plane.abs().cmpgt(half_size).any() {
+        // point is outside the portal surface
         return;
     }
 
     let mut portal_transform = transform.compute_transform();
-    let clamped_point = transform.affine().transform_point3(point_on_plane.clamp(
-        (-half_size + DEFAULT_PORTAL_SIZE / 2.).extend(0.),
-        (half_size - DEFAULT_PORTAL_SIZE / 2.).extend(0.),
-    ));
+    let clamped_point = transform.affine().transform_point3(
+        point_on_plane
+            .clamp(
+                -half_size + DEFAULT_PORTAL_SIZE / 2.,
+                half_size - DEFAULT_PORTAL_SIZE / 2.,
+            )
+            .extend(0.),
+    );
     portal_transform.translation +=
         (clamped_point - transform.translation()) + transform.back() * 0.01;
 
@@ -155,7 +181,7 @@ pub fn shoot_portal(
     }
 }
 
-fn spawn_portal<P: Component>(
+fn spawn_portal<P: PortalKind>(
     portal: P,
     transform: Transform,
     pair: Option<(Entity, Mut<Portal>)>,
@@ -171,7 +197,7 @@ fn spawn_portal<P: Component>(
             portal,
             PbrBundle {
                 mesh: meshes.add(Plane3d::new(Vec3::Z).mesh().size(1., 2.)),
-                material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
+                material: materials.add(P::color()),
                 transform,
                 ..Default::default()
             },
