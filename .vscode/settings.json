@@ -3,6 +3,7 @@
         "cmpgt",
         "cmple",
         "cmplt",
+        "concatcp",
         "Deband",
         "fullscreen",
         "Gltf",

@@ -38,6 +38,7 @@ bevy_rapier3d = { version = "0.26.0", features = [
 ], default-features = false }
 bevy_registry_export = "0.3.1"
 cfg-if = "1.0.0"
+const_format = "0.2.32"
 itertools = "0.13.0"
 rayon = "1.10.0"
 # uom = "0.36.0"

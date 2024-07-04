@@ -4,6 +4,12 @@ pub mod resource;
 
 use bevy::prelude::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Either<A, B> {
+    Left(A),
+    Right(B),
+}
+
 pub trait ExpDecay {
     fn exp_decay(self, rhs: Self, decay: Self, dt: f32) -> Self;
 }
