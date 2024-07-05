@@ -17,7 +17,7 @@ opt-level = 3
 [features]
 default = ["debug"]
 debug = [
-    "bevy/dynamic_linking",
+    # "bevy/dynamic_linking",
     "dep:bevy_editor_pls",
     "bevy_rapier3d/debug-render-3d",
 ]

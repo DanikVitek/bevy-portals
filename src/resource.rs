@@ -43,6 +43,7 @@ pub struct ControlsConfig {
     pub jump: Control,
     pub shoot1: Control,
     pub shoot2: Control,
+    pub remove_portals: Control,
 }
 
 impl Default for ControlsConfig {
@@ -56,6 +57,7 @@ impl Default for ControlsConfig {
             jump: Control::KeyCode(KeyCode::Space),
             shoot1: Control::MouseButton(MouseButton::Left),
             shoot2: Control::MouseButton(MouseButton::Right),
+            remove_portals: Control::KeyCode(KeyCode::KeyR),
         }
     }
 }
@@ -69,6 +71,39 @@ impl Default for MouseSensitivity {
     }
 }
 
+#[derive(Debug, Clone, Copy, Resource)]
+pub struct FieldOfView(f32);
+
+impl FieldOfView {
+    pub const DEG60: Self = Self(std::f32::consts::FRAC_PI_3);
+    pub const DEG90: Self = Self(std::f32::consts::FRAC_PI_2);
+    pub const DEG180: Self = Self(std::f32::consts::PI);
+
+    pub fn from_degrees(degrees: f32) -> Self {
+        Self(degrees.to_radians())
+    }
+
+    pub fn from_radians(radians: f32) -> Self {
+        Self(radians)
+    }
+
+    pub fn degrees(&self) -> f32 {
+        self.0.to_degrees()
+    }
+
+    pub fn radians(&self) -> f32 {
+        self.0
+    }
+}
+
+impl Default for FieldOfView {
+    fn default() -> Self {
+        Self::DEG90
+    }
+}
+
+pub type Fov = FieldOfView;
+
 #[derive(Debug, Clone, Copy, Default, Resource)]
 pub struct Controls {
     pub up: bool,
@@ -79,6 +114,7 @@ pub struct Controls {
     pub jump: bool,
     pub shoot1: bool,
     pub shoot2: bool,
+    pub remove_portals: bool,
 }
 
 impl Controls {

@@ -1,7 +1,7 @@
 use bevy::{
     app::AppExit,
     prelude::*,
-    window::{CursorGrabMode, PrimaryWindow},
+    window::{CursorGrabMode, PrimaryWindow, WindowCloseRequested},
 };
 
 use crate::resource::{Controls, ControlsConfig};
@@ -48,6 +48,22 @@ pub fn input_mappings(
     controls.shoot2 = controls_config
         .shoot2
         .just_pressed(&input_key_code, &input_mouse_button);
+    controls.remove_portals = controls_config
+        .remove_portals
+        .just_pressed(&input_key_code, &input_mouse_button);
+}
+
+pub fn exit_on_primary_close(
+    mut close_events: EventReader<WindowCloseRequested>,
+    primary_window_q: Query<&Window, With<PrimaryWindow>>,
+    mut exit: EventWriter<AppExit>,
+) {
+    for &WindowCloseRequested { window } in close_events.read() {
+        if primary_window_q.get(window).is_ok() {
+            exit.send(AppExit);
+            break;
+        }
+    }
 }
 
 pub fn cursor_grab(

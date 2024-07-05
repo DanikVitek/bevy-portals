@@ -12,7 +12,7 @@ use bevy_portals::{
         ui::{self, CrosshairMaterial},
         AppExt,
     },
-    resource::{Controls, ControlsConfig, MouseSensitivity},
+    resource::{Controls, ControlsConfig, Fov, MouseSensitivity},
 };
 use bevy_rapier3d::prelude::*;
 use bevy_registry_export::*;
@@ -37,9 +37,10 @@ fn main() {
         .register_types() // domain::AppExt
         .init_resource::<ControlsConfig>()
         .init_resource::<MouseSensitivity>()
+        .init_resource::<Fov>()
         .init_resource::<Controls>()
-        .init_resource::<Events<SpawnPortal<Portal1>>>()
-        .init_resource::<Events<SpawnPortal<Portal2>>>()
+        .add_event::<SpawnPortal<Portal1>>()
+        .add_event::<SpawnPortal<Portal2>>()
         .add_plugins((
             UiMaterialPlugin::<CrosshairMaterial>::default(),
             MaterialPlugin::<PortalViewMaterial>::default(),
@@ -69,17 +70,22 @@ fn main() {
                             ),
                         )
                             .chain(),
+                        portal::remove_portals,
                     ),
                 )
-                    .chain(), 
+                    .chain(),
                 player::rotation,
                 input::cursor_grab,
                 input::cursor_ungrab,
+                input::exit_on_primary_close,
                 debug_info::portal_surface_gizmo,
                 debug_info::portal_gizmo,
-                portal::move_portal_camera,
-                portal::resize_portal_view_image,
             ),
+        )
+        .add_systems(PreUpdate, portal::resize_portal_view_image)
+        .add_systems(
+            PostUpdate,
+            (portal::move_portal_camera, portal::portal_camera_gizmo).chain(),
         )
         .run();
 }

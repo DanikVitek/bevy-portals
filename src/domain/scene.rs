@@ -56,12 +56,23 @@ pub fn setup(
     );
 
     spawn_wall(
+        Transform::from_xyz(10., 2_f32.sqrt() / 2., 15.).with_rotation(
+            Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)
+                * Quat::from_rotation_x(45_f32.to_radians()),
+        ),
+        (Name::new("Wall 3"),),
+        &mut commands,
+        &mut meshes,
+        &mut materials,
+    );
+
+    spawn_wall(
         Transform::from_xyz(20., 3., 15.).with_rotation(
             Quat::from_rotation_y(std::f32::consts::FRAC_PI_4)
                 * Quat::from_rotation_x(45_f32.to_radians())
                 * Quat::from_rotation_z(45_f32.to_radians()),
         ),
-        (Name::new("Wall 3"),),
+        (Name::new("Wall 4"),),
         &mut commands,
         &mut meshes,
         &mut materials,
@@ -90,11 +101,11 @@ fn spawn_wall(
     commands
         .spawn((
             bundle,
-            Collider::cuboid(0.1, 1., 2.),
+            Collider::cuboid(2., 1., 0.1),
             RigidBody::Fixed,
             CollisionGroups::new(STATIC_COLLISION_GROUP, Group::all()),
             PbrBundle {
-                mesh: meshes.add(Cuboid::new(0.2, 2., 4.)),
+                mesh: meshes.add(Cuboid::new(4., 2., 0.2)),
                 material: materials.add(Color::GRAY),
                 transform,
                 ..Default::default()
@@ -106,8 +117,7 @@ fn spawn_wall(
                     size: Vec2::new(4., 2.),
                 },
                 TransformBundle::from_transform(Transform {
-                    translation: Vec3::new(0.1, 0., 0.),
-                    rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+                    translation: Vec3::new(0., 0., 0.1),
                     ..Default::default()
                 }),
                 Collider::cuboid(2., 1., 0.005),
@@ -120,8 +130,8 @@ fn spawn_wall(
                     size: Vec2::new(4., 2.),
                 },
                 TransformBundle::from_transform(Transform {
-                    translation: Vec3::new(-0.1, 0., 0.),
-                    rotation: Quat::from_rotation_y(std::f32::consts::FRAC_PI_2 * 3.),
+                    translation: Vec3::new(0., 0., -0.1),
+                    rotation: Quat::from_rotation_y(std::f32::consts::PI),
                     ..Default::default()
                 }),
                 Collider::cuboid(2., 1., 0.005),

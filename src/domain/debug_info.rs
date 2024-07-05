@@ -11,6 +11,18 @@ pub struct DebugInfoRoot;
 #[derive(Component)]
 pub struct DebugInfoText;
 
+#[derive(Component)]
+pub struct TranslationFromOriginGizmo;
+
+pub fn translation_from_origin_gizmo(
+    q: Query<(&GlobalTransform, &TranslationFromOriginGizmo)>,
+    mut gizmos: Gizmos,
+) {
+    for (transform, _) in q.iter() {
+        gizmos.line(Vec3::ZERO, transform.translation(), Color::WHITE);
+    }
+}
+
 pub fn setup(mut commands: Commands) {
     commands
         .spawn((

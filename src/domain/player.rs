@@ -6,7 +6,7 @@ use bevy_editor_pls::default_windows::cameras::EDITOR_RENDER_LAYER;
 use bevy_rapier3d::prelude::*;
 
 use crate::{
-    resource::{Controls, MouseSensitivity},
+    resource::{Controls, Fov, MouseSensitivity},
     ExpDecay,
 };
 
@@ -76,6 +76,7 @@ pub fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    fov: Res<Fov>,
 ) {
     commands
         .spawn((
@@ -103,7 +104,7 @@ pub fn setup(
             #[cfg(feature = "debug")]
             RenderLayers::from_layers(&[PLAYER_RENDER_LAYER, EDITOR_RENDER_LAYER]),
             #[cfg(not(feature = "debug"))]
-            RenderLayers::layer(PLAYER_RENDER_LAYER),
+            const { RenderLayers::layer(PLAYER_RENDER_LAYER) },
         ))
         .with_children(|child| {
             child.spawn((
@@ -112,7 +113,7 @@ pub fn setup(
                 Camera3dBundle {
                     transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
                     projection: PerspectiveProjection {
-                        fov: std::f32::consts::FRAC_PI_2, // 90 degrees
+                        fov: fov.radians(),
                         ..Default::default()
                     }
                     .into(),

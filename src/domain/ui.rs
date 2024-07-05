@@ -1,7 +1,12 @@
 use bevy::{
     prelude::*,
-    render::render_resource::{AsBindGroup, ShaderRef},
+    render::{
+        render_resource::{AsBindGroup, ShaderRef},
+        view::RenderLayers,
+    },
 };
+
+pub const UI_RENDER_LAYER: u8 = 2;
 
 pub fn setup(mut commands: Commands, mut ui_materials: ResMut<Assets<CrosshairMaterial>>) {
     commands
@@ -17,20 +22,24 @@ pub fn setup(mut commands: Commands, mut ui_materials: ResMut<Assets<CrosshairMa
                 },
                 ..Default::default()
             },
+            RenderLayers::layer(UI_RENDER_LAYER),
         ))
         .with_children(|child| {
-            child.spawn(MaterialNodeBundle {
-                material: ui_materials.add(CrosshairMaterial {
-                    color: Color::WHITE.rgba_to_vec4(),
-                }),
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    width: Val::Px(18.),
-                    height: Val::Px(18.),
+            child.spawn((
+                MaterialNodeBundle {
+                    material: ui_materials.add(CrosshairMaterial {
+                        color: Color::WHITE.rgba_to_vec4(),
+                    }),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        width: Val::Px(18.),
+                        height: Val::Px(18.),
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
-                ..Default::default()
-            });
+                RenderLayers::layer(UI_RENDER_LAYER),
+            ));
         });
 }
 
