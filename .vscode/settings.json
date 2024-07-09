@@ -10,6 +10,8 @@
         "halfspace",
         "itertools",
         "linvel",
+        "srgb",
+        "Srgba",
         "tnua",
         "ungrab",
         "Vect",

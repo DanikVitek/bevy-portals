@@ -11,7 +11,7 @@ pub fn setup(
     mut exit: EventWriter<AppExit>,
 ) {
     let Ok(mut primary_window) = window_query.get_single_mut() else {
-        exit.send(AppExit);
+        exit.send(AppExit::Success);
         return;
     };
     primary_window.cursor.grab_mode = CursorGrabMode::Locked;
@@ -60,7 +60,7 @@ pub fn exit_on_primary_close(
 ) {
     for &WindowCloseRequested { window } in close_events.read() {
         if primary_window_q.get(window).is_ok() {
-            exit.send(AppExit);
+            exit.send(AppExit::Success);
             break;
         }
     }
@@ -73,7 +73,7 @@ pub fn cursor_grab(
 ) {
     if input.any_just_pressed([MouseButton::Left, MouseButton::Right]) {
         let Ok(mut primary_window) = window_query.get_single_mut() else {
-            exit.send(AppExit);
+            exit.send(AppExit::Success);
             return;
         };
         primary_window.cursor.grab_mode = CursorGrabMode::Locked;
@@ -88,7 +88,7 @@ pub fn cursor_ungrab(
 ) {
     if input.just_pressed(KeyCode::Escape) {
         let Ok(mut primary_window) = window_query.get_single_mut() else {
-            exit.send(AppExit);
+            exit.send(AppExit::Success);
             return;
         };
         primary_window.cursor.grab_mode = CursorGrabMode::None;

@@ -26,7 +26,7 @@ pub fn setup(
         .with_children(|child| {
             child.spawn((MaterialNodeBundle {
                 material: ui_materials.add(CrosshairMaterial {
-                    color: Color::WHITE.rgba_to_vec4(),
+                    color: Color::WHITE.to_linear().to_vec4(),
                 }),
                 style: Style {
                     position_type: PositionType::Absolute,

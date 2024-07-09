@@ -8,7 +8,7 @@ use bevy::{
             AsBindGroup, Extent3d, ShaderRef, TextureDescriptor, TextureDimension, TextureFormat,
             TextureUsages,
         },
-        view::RenderLayers,
+        view::Layer,
     },
     window::{PrimaryWindow, WindowResized},
 };
@@ -23,6 +23,7 @@ use bevy_rapier3d::{
 use crate::{
     domain::player::PLAYER_COLLISION_GROUP,
     resource::{Controls, Fov},
+    ALL_RENDER_LAYERS,
 };
 
 use super::player::PlayerCamera;
@@ -64,7 +65,7 @@ impl PortalKind for Portal1 {
     type Pair = Portal2;
 
     fn color() -> Color {
-        Color::rgb(0.6, 0.7, 0.8)
+        Color::srgb(0.6, 0.7, 0.8)
     }
 }
 
@@ -72,7 +73,7 @@ impl PortalKind for Portal2 {
     type Pair = Portal1;
 
     fn color() -> Color {
-        Color::rgb(0.8, 0.7, 0.6)
+        Color::srgb(0.8, 0.7, 0.6)
     }
 }
 
@@ -122,7 +123,7 @@ pub fn shoot_portal(
         // Flip the Y co-ordinate origin from the top to the bottom.
         viewport_position.y = target_size.y - viewport_position.y;
         let ndc = viewport_position * 2. / target_size - Vec2::ONE;
-        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
+        let ndc_to_world = camera_transform.compute_matrix() * camera.clip_from_view().inverse();
         let world_near_plane = ndc_to_world.project_point3(ndc.extend(1.));
         // Using EPSILON because an ndc with Z = 0 returns NaNs.
         let world_far_plane = ndc_to_world.project_point3(ndc.extend(f32::EPSILON));
@@ -209,7 +210,10 @@ pub fn spawn_portal<P: PortalKind>(
         transform,
     } in spawn_portal_events.read().copied()
     {
-        println!("Spawning {}", std::any::type_name::<P>().rsplit_once("::").unwrap().1);
+        println!(
+            "Spawning {}",
+            std::any::type_name::<P>().rsplit_once("::").unwrap().1
+        );
 
         match portal_q.get_single() {
             Ok(portal) => commands.entity(portal).despawn_recursive(),
@@ -254,7 +258,7 @@ pub fn spawn_portal<P: PortalKind>(
             portal_kind,
             TransformBundle::from_transform(transform),
             VisibilityBundle::default(),
-            meshes.add(Plane3d::new(Vec3::Z).mesh().size(1., 2.)),
+            meshes.add(Plane3d::new(Vec3::Z, Vec2::new(0.5, 1.))),
         ));
         new_portal.with_children(|child| {
             child.spawn((
@@ -269,13 +273,14 @@ pub fn spawn_portal<P: PortalKind>(
                     camera: Camera {
                         order: -1,
                         target: portal_view_image_handle.clone().into(),
-                        clear_color: Color::GRAY.into(),
                         ..Default::default()
                     },
                     ..Default::default()
                 },
                 #[cfg(feature = "debug")]
-                const { RenderLayers::all().without(EDITOR_RENDER_LAYER) },
+                ALL_RENDER_LAYERS
+                    .clone()
+                    .without(EDITOR_RENDER_LAYER as Layer),
             ));
         });
 
@@ -390,12 +395,12 @@ pub fn portal_camera_gizmo(
             .or_else(|_| portal2_q.get(portal.get()).map(|_| Portal2::color()))
             .unwrap();
         gizmos.cuboid(*gt, color);
-        gizmos.arrow(gt.translation(), gt.translation() + gt.forward(), color);
+        gizmos.arrow(gt.translation(), gt.translation() + *gt.forward(), color);
         match projection {
             Projection::Perspective(projection) => {
                 gizmos.circle(
                     gt.translation() + projection.near * gt.forward(),
-                    Direction3d::new_unchecked(gt.forward()),
+                    gt.forward(),
                     0.5,
                     color,
                 );
@@ -466,7 +471,7 @@ pub struct PortalPerspectiveProjection {
     /// Defaults to a value of `0.1`.
     pub near: f32,
 
-    pub clip_plane: (f32, Direction3d),
+    pub clip_plane: (f32, Dir3),
 
     /// The distance from the camera in world units of the viewing frustum's far plane.
     ///
@@ -477,7 +482,7 @@ pub struct PortalPerspectiveProjection {
 }
 
 impl CameraProjection for PortalPerspectiveProjection {
-    fn get_projection_matrix(&self) -> Mat4 {
+    fn get_clip_from_view(&self) -> Mat4 {
         Mat4::perspective_infinite_reverse_rh(self.fov, self.aspect_ratio, self.near)
     }
 
@@ -528,7 +533,7 @@ impl Default for PortalPerspectiveProjection {
             fov: std::f32::consts::FRAC_PI_4,
             aspect_ratio: 1.0,
             near: 0.1,
-            clip_plane: (0.0, Direction3d::NEG_Z),
+            clip_plane: (0.0, Dir3::NEG_Z),
             far: 1000.0,
         }
     }

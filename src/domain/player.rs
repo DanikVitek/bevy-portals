@@ -1,6 +1,11 @@
 #![allow(clippy::type_complexity)]
 
-use bevy::{input::mouse::MouseMotion, prelude::*, render::view::RenderLayers};
+use bevy::{
+    color::palettes,
+    input::mouse::MouseMotion,
+    prelude::*,
+    render::view::{Layer, RenderLayers},
+};
 #[cfg(feature = "debug")]
 use bevy_editor_pls::default_windows::cameras::EDITOR_RENDER_LAYER;
 use bevy_rapier3d::prelude::*;
@@ -12,10 +17,10 @@ use bevy_tnua_rapier3d::{TnuaRapier3dIOBundle, TnuaRapier3dSensorShape};
 
 use crate::{
     resource::{Controls, Fov, MouseSensitivity},
-    ExpDecay,
+    ExpDecay, ALL_RENDER_LAYERS,
 };
 
-pub const PLAYER_RENDER_LAYER: u8 = 1;
+pub const PLAYER_RENDER_LAYER: Layer = 1;
 pub const PLAYER_COLLISION_GROUP: Group = Group::GROUP_2;
 
 /// m
@@ -94,13 +99,12 @@ pub fn setup(
                 ..Default::default()
             },
             #[cfg(feature = "debug")]
-            const {
-                RenderLayers::all()
-                    .without(PLAYER_RENDER_LAYER)
-                    .without(EDITOR_RENDER_LAYER)
-            },
+            ALL_RENDER_LAYERS
+                .clone()
+                .without(PLAYER_RENDER_LAYER)
+                .without(EDITOR_RENDER_LAYER as Layer),
             #[cfg(not(feature = "debug"))]
-            const { RenderLayers::all().without(PLAYER_RENDER_LAYER) },
+            RenderLayers::all().without(PLAYER_RENDER_LAYER),
         ))
         .id();
     commands
@@ -114,7 +118,7 @@ pub fn setup(
                     PLAYER_RADIUS,
                     PLAYER_HEIGHT - 2. * PLAYER_RADIUS,
                 ))),
-                material: materials.add(Color::CYAN),
+                material: materials.add(Color::Srgba(palettes::basic::AQUA)),
                 transform: Transform::from_xyz(0., PLAYER_HEIGHT, 0.),
                 ..Default::default()
             },

@@ -23,21 +23,22 @@ debug = [
 ]
 
 [dependencies]
-bevy = { version = "0.13.2" }
-bevy-tnua = { version = "0.18.0" }
-bevy-tnua-rapier3d = { version = "0.6.0" }
-bevy_editor_pls = { version = "0.8.1", optional = true }
-bevy_gltf_blueprints = "0.10.2"
-bevy_gltf_components = "0.5.1"
-bevy_gltf_save_load = "0.4.1"
-bevy_rapier3d = { version = "0.26.0", features = [
+bevy = { version = "0.14.0" }
+bevy-tnua = { version = "0.19.0" }
+bevy-tnua-rapier3d = { version = "0.7.0" }
+bevy_editor_pls = { git = "https://github.com/zhaop/bevy_editor_pls", branch = "bevy-0.14", optional = true }
+# bevy_gltf_blueprints = "0.10.2"
+# bevy_gltf_components = "0.5.1"
+# bevy_gltf_save_load = "0.4.1"
+bevy_rapier3d = { version = "0.27.0", features = [
     "dim3",
     "async-collider",
     "parallel",
     "simd-stable",
 ], default-features = false }
-bevy_registry_export = "0.3.1"
+# bevy_registry_export = "0.3.1"
 cfg-if = "1.0.0"
 const_format = "0.2.32"
 itertools = "0.13.0"
+once_cell = "1.19.0"
 rayon = "1.10.0"

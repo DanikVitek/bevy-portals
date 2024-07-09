@@ -3,7 +3,7 @@ use bevy::{prelude::*, render::camera::CameraProjectionPlugin};
 use bevy::window::WindowResolution;
 #[cfg(feature = "debug")]
 use bevy_editor_pls::EditorPlugin;
-use bevy_gltf_components::ComponentsFromGltfPlugin;
+// use bevy_gltf_components::ComponentsFromGltfPlugin;
 use bevy_portals::{
     domain::{
         debug_info, input, player,
@@ -15,7 +15,7 @@ use bevy_portals::{
     resource::{Controls, ControlsConfig, Fov, MouseSensitivity},
 };
 use bevy_rapier3d::prelude::*;
-use bevy_registry_export::*;
+// use bevy_registry_export::*;
 use bevy_tnua::{controller::TnuaControllerPlugin, TnuaUserControlsSystemSet};
 use bevy_tnua_rapier3d::TnuaRapier3dPlugin;
 
@@ -33,8 +33,8 @@ fn main() {
                 decorations: true,
                 ..Default::default()
             }),
-            ExportRegistryPlugin::default(),
-            ComponentsFromGltfPlugin::default(),
+            // ExportRegistryPlugin::default(),
+            // ComponentsFromGltfPlugin::default(),
             TnuaControllerPlugin::default(),
             TnuaRapier3dPlugin::default(),
         ))

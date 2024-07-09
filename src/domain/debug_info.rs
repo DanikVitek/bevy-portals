@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{color::palettes, prelude::*};
 
 use super::{
     player::{Grounded, Player},
@@ -74,7 +74,7 @@ pub fn portal_surface_gizmo(
     for (transform, PortalSurface { size }) in portal_surface_q.iter() {
         let (scale, rotation, translation) = transform.to_scale_rotation_translation();
         gizmos.rect(translation, rotation, *size * scale.xy(), Color::WHITE);
-        gizmos.ray(translation, transform.back(), Color::WHITE);
+        gizmos.ray(translation, *transform.back(), Color::WHITE);
     }
 }
 
@@ -89,9 +89,9 @@ pub fn portal_gizmo(
             translation,
             rotation,
             Vec2::new(1., 2.) * scale.xy(),
-            Color::BLUE,
+            palettes::css::BLUE,
         );
-        gizmos.ray(translation, transform.back(), Color::BLUE);
+        gizmos.ray(translation, *transform.back(), palettes::css::BLUE);
     }
     for transform in portal2_q.iter() {
         let (scale, rotation, translation) = transform.to_scale_rotation_translation();
@@ -99,8 +99,8 @@ pub fn portal_gizmo(
             translation,
             rotation,
             Vec2::new(1., 2.) * scale.xy(),
-            Color::ORANGE,
+            palettes::css::ORANGE,
         );
-        gizmos.ray(translation, transform.back(), Color::ORANGE);
+        gizmos.ray(translation, *transform.back(), palettes::css::ORANGE);
     }
 }

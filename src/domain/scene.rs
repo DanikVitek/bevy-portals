@@ -1,7 +1,9 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, render::view::Layer};
 use bevy_rapier3d::prelude::*;
 
 use super::portal::{PortalSurface, PORTAL_RAY_COLLISION_GROUP};
+
+pub const GROUND_RENDER_LAYER: Layer = 0;
 
 pub const STATIC_COLLISION_GROUP: Group = Group::GROUP_1;
 pub const DYNAMIC_COLLISION_GROUP: Group = Group::GROUP_3;
@@ -19,7 +21,7 @@ pub fn setup(
         CollisionGroups::new(STATIC_COLLISION_GROUP, Group::all()),
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(128., 128.)),
-            material: materials.add(Color::GRAY),
+            material: materials.add(Color::Srgba(Srgba::gray(0.5))),
             ..Default::default()
         },
     ));
@@ -32,7 +34,7 @@ pub fn setup(
         ColliderMassProperties::Mass(30.), // kg
         PbrBundle {
             mesh: meshes.add(Cuboid::new(1., 1., 1.)),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
+            material: materials.add(Color::srgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(1.5, 0.5, 1.5),
             ..Default::default()
         },
@@ -106,7 +108,7 @@ fn spawn_wall(
             CollisionGroups::new(STATIC_COLLISION_GROUP, Group::all()),
             PbrBundle {
                 mesh: meshes.add(Cuboid::new(4., 2., 0.2)),
-                material: materials.add(Color::GRAY),
+                material: materials.add(Color::Srgba(Srgba::gray(0.5))),
                 transform,
                 ..Default::default()
             },
