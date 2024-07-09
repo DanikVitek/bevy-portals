@@ -1,14 +1,13 @@
 use bevy::{
     prelude::*,
-    render::{
-        render_resource::{AsBindGroup, ShaderRef},
-        view::RenderLayers,
-    },
+    render::render_resource::{AsBindGroup, ShaderRef},
 };
 
-pub const UI_RENDER_LAYER: u8 = 2;
-
-pub fn setup(mut commands: Commands, mut ui_materials: ResMut<Assets<CrosshairMaterial>>) {
+pub fn setup(
+    main_camera: In<Entity>,
+    mut commands: Commands,
+    mut ui_materials: ResMut<Assets<CrosshairMaterial>>,
+) {
     commands
         .spawn((
             Name::new("Crosshair"),
@@ -22,24 +21,21 @@ pub fn setup(mut commands: Commands, mut ui_materials: ResMut<Assets<CrosshairMa
                 },
                 ..Default::default()
             },
-            RenderLayers::layer(UI_RENDER_LAYER),
+            TargetCamera(main_camera.0),
         ))
         .with_children(|child| {
-            child.spawn((
-                MaterialNodeBundle {
-                    material: ui_materials.add(CrosshairMaterial {
-                        color: Color::WHITE.rgba_to_vec4(),
-                    }),
-                    style: Style {
-                        position_type: PositionType::Absolute,
-                        width: Val::Px(18.),
-                        height: Val::Px(18.),
-                        ..Default::default()
-                    },
+            child.spawn((MaterialNodeBundle {
+                material: ui_materials.add(CrosshairMaterial {
+                    color: Color::WHITE.rgba_to_vec4(),
+                }),
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Px(18.),
+                    height: Val::Px(18.),
                     ..Default::default()
                 },
-                RenderLayers::layer(UI_RENDER_LAYER),
-            ));
+                ..Default::default()
+            },));
         });
 }
 

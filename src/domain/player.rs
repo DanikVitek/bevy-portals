@@ -4,6 +4,11 @@ use bevy::{input::mouse::MouseMotion, prelude::*, render::view::RenderLayers};
 #[cfg(feature = "debug")]
 use bevy_editor_pls::default_windows::cameras::EDITOR_RENDER_LAYER;
 use bevy_rapier3d::prelude::*;
+use bevy_tnua::{
+    builtins::{TnuaBuiltinJump, TnuaBuiltinWalk},
+    controller::{TnuaController, TnuaControllerBundle},
+};
+use bevy_tnua_rapier3d::{TnuaRapier3dIOBundle, TnuaRapier3dSensorShape};
 
 use crate::{
     resource::{Controls, Fov, MouseSensitivity},
@@ -21,15 +26,11 @@ const PLAYER_RADIUS: f32 = 0.3;
 const EYES_HEIGHT: f32 = PLAYER_HEIGHT - 2. * PLAYER_RADIUS;
 
 /// m/s
-const WALK_SPEED: f32 = 1.7;
+const WALK_SPEED: f32 = 5.;
 /// m/s
 const RUN_SPEED: f32 = WALK_SPEED * 2.;
-/// 1/second
-const DECAY: f32 = 10.;
-/// m/s
-const TERMINAL_VELOCITY: f32 = 50.;
-/// m/s
-const JUMP_SPEED: f32 = 5.;
+/// m
+const JUMP_HEIGHT: f32 = 3.;
 
 #[derive(Debug, Default, Component, Reflect)]
 #[reflect(Component)]
@@ -77,7 +78,31 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     fov: Res<Fov>,
-) {
+) -> Entity {
+    let camera = commands
+        .spawn((
+            Name::new("FPS Camera"),
+            PlayerCamera,
+            Camera3dBundle {
+                transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
+                projection: PerspectiveProjection {
+                    fov: fov.radians(),
+                    ..Default::default()
+                }
+                .into(),
+                // dither: DebandDither::Enabled,
+                ..Default::default()
+            },
+            #[cfg(feature = "debug")]
+            const {
+                RenderLayers::all()
+                    .without(PLAYER_RENDER_LAYER)
+                    .without(EDITOR_RENDER_LAYER)
+            },
+            #[cfg(not(feature = "debug"))]
+            const { RenderLayers::all().without(PLAYER_RENDER_LAYER) },
+        ))
+        .id();
     commands
         .spawn((
             Name::new("Player"),
@@ -93,105 +118,56 @@ pub fn setup(
                 transform: Transform::from_xyz(0., PLAYER_HEIGHT, 0.),
                 ..Default::default()
             },
-            RigidBody::KinematicPositionBased,
+            RigidBody::Dynamic,
             Collider::capsule_y(PLAYER_HEIGHT / 2. - PLAYER_RADIUS, PLAYER_RADIUS),
-            KinematicCharacterController {
-                custom_mass: Some(60.), // kg
-                apply_impulse_to_dynamic_bodies: true,
-                ..Default::default()
-            },
+            ColliderMassProperties::Mass(60.0),
+            TnuaRapier3dIOBundle::default(),
+            TnuaControllerBundle::default(),
+            LockedAxes::ROTATION_LOCKED,
+            TnuaRapier3dSensorShape(Collider::cylinder(0., PLAYER_RADIUS - 0.01)),
             CollisionGroups::new(PLAYER_COLLISION_GROUP, Group::all()),
             #[cfg(feature = "debug")]
             RenderLayers::from_layers(&[PLAYER_RENDER_LAYER, EDITOR_RENDER_LAYER]),
             #[cfg(not(feature = "debug"))]
             const { RenderLayers::layer(PLAYER_RENDER_LAYER) },
         ))
-        .with_children(|child| {
-            child.spawn((
-                Name::new("FPS Camera"),
-                PlayerCamera,
-                Camera3dBundle {
-                    transform: Transform::from_xyz(0., EYES_HEIGHT / 2., 0.),
-                    projection: PerspectiveProjection {
-                        fov: fov.radians(),
-                        ..Default::default()
-                    }
-                    .into(),
-                    // dither: DebandDither::Enabled,
-                    ..Default::default()
-                },
-                #[cfg(feature = "debug")]
-                const {
-                    RenderLayers::all()
-                        .without(PLAYER_RENDER_LAYER)
-                        .without(EDITOR_RENDER_LAYER)
-                },
-                #[cfg(not(feature = "debug"))]
-                const { RenderLayers::all().without(PLAYER_RENDER_LAYER) },
-            ));
+        .add_child(camera);
 
-            const GROUND_SENSOR_HEIGHT: f32 = 0.1;
-            child.spawn((
-                Name::new("Ground Sensor"),
-                GroundSensor,
-                Collider::cylinder(GROUND_SENSOR_HEIGHT / 2., PLAYER_RADIUS),
-                Sensor,
-                TransformBundle::from_transform(Transform::from_xyz(
-                    0.,
-                    -(PLAYER_HEIGHT / 2. + GROUND_SENSOR_HEIGHT / 3.),
-                    0.,
-                )),
-                CollisionGroups::new(PLAYER_COLLISION_GROUP, PLAYER_COLLISION_GROUP.complement()),
-                SolverGroups::new(Group::empty(), Group::empty()),
-                ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC,
-            ));
-        });
+    camera
 }
 
 pub fn movement(
-    time: Res<Time>,
     controls: Res<Controls>,
-    rapier_config: Res<RapierConfiguration>,
-    rapier_context: Res<RapierContext>,
-    mut player_q: Query<
-        (
-            &mut Velocity,
-            &mut KinematicCharacterController,
-            Option<&KinematicCharacterControllerOutput>,
-            &Transform,
-            &mut Grounded,
-        ),
-        With<Player>,
-    >,
-    ground_sensor_q: Query<Entity, With<GroundSensor>>,
+    mut player_q: Query<(&GlobalTransform, &mut TnuaController), With<Player>>,
 ) {
-    let (mut velocity, mut controller, controller_output, player_transform, mut grounded) =
-        player_q.single_mut();
-    let ground_sensor = ground_sensor_q.single();
-
-    let rotation_angle = player_transform.rotation.to_euler(EulerRot::YXZ).0;
-    let target_velocity = controls
-        .to_direction()
-        .rotate(Vec2::new(rotation_angle.cos(), -rotation_angle.sin()))
-        * (if controls.run { RUN_SPEED } else { WALK_SPEED });
-
-    velocity.exp_decay_horizontal(target_velocity, DECAY, time.delta_seconds());
-    grounded.0 = controller_output.map(|o| o.grounded).unwrap_or_default()
-        || rapier_context
-            .intersection_pairs_with(ground_sensor)
-            .any(|(_, _, intersect)| intersect);
-    velocity.0.y = if grounded.0 {
-        if controls.jump {
-            JUMP_SPEED
-        } else {
-            0.0
-        }
-    } else {
-        (velocity.0.y + rapier_config.gravity.y * time.delta_seconds()).max(-TERMINAL_VELOCITY)
+    let Ok((player_gt, mut controller)) = player_q.get_single_mut() else {
+        return;
     };
 
-    controller.translation =
-        (velocity.0.length() > 0.001).then_some(velocity.0 * time.delta_seconds());
+    let rotation_angle = Quat::from_affine3(&player_gt.affine())
+        .to_euler(EulerRot::YXZ)
+        .0;
+    let speed = if controls.run { RUN_SPEED } else { WALK_SPEED };
+    let desired_velocity = controls
+        .to_direction()
+        .rotate(Vec2::new(rotation_angle.cos(), -rotation_angle.sin()))
+        * speed;
+    let desired_velocity = Vec3::new(desired_velocity.x, 0., desired_velocity.y);
+
+    controller.basis(TnuaBuiltinWalk {
+        desired_velocity,
+        // acceleration: speed * 0.9,
+        float_height: PLAYER_HEIGHT / 2. + 0.005,
+        // air_acceleration: speed * 0.5,
+        ..Default::default()
+    });
+
+    if controls.jump {
+        controller.action(TnuaBuiltinJump {
+            height: JUMP_HEIGHT,
+            ..Default::default()
+        });
+    }
 }
 
 pub fn rotation(

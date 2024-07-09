@@ -10,6 +10,7 @@
         "halfspace",
         "itertools",
         "linvel",
+        "tnua",
         "ungrab",
         "Vect",
         "wgsl"

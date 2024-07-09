@@ -6727,6 +6727,49 @@
       "type": "object",
       "typeInfo": "Struct"
     },
+    "bevy_portals::domain::portal::PortalPerspectiveProjection": {
+      "additionalProperties": false,
+      "isComponent": true,
+      "isResource": false,
+      "properties": {
+        "aspect_ratio": {
+          "type": {
+            "$ref": "#/$defs/f32"
+          }
+        },
+        "clip_plane": {
+          "type": {
+            "$ref": "#/$defs/(f32, bevy_math::primitives::Direction3d)"
+          }
+        },
+        "far": {
+          "type": {
+            "$ref": "#/$defs/f32"
+          }
+        },
+        "fov": {
+          "type": {
+            "$ref": "#/$defs/f32"
+          }
+        },
+        "near": {
+          "type": {
+            "$ref": "#/$defs/f32"
+          }
+        }
+      },
+      "required": [
+        "fov",
+        "aspect_ratio",
+        "near",
+        "clip_plane",
+        "far"
+      ],
+      "short_name": "PortalPerspectiveProjection",
+      "title": "bevy_portals::domain::portal::PortalPerspectiveProjection",
+      "type": "object",
+      "typeInfo": "Struct"
+    },
     "bevy_portals::domain::portal::PortalSurface": {
       "additionalProperties": false,
       "isComponent": true,

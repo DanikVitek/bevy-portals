@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, render::camera::CameraProjectionPlugin};
 #[cfg(feature = "debug")]
 use bevy::window::WindowResolution;
 #[cfg(feature = "debug")]
@@ -7,7 +7,7 @@ use bevy_gltf_components::ComponentsFromGltfPlugin;
 use bevy_portals::{
     domain::{
         debug_info, input, player,
-        portal::{self, Portal1, Portal2, PortalViewMaterial, SpawnPortal},
+        portal::{self, Portal1, Portal2, PortalPerspectiveProjection, PortalViewMaterial, SpawnPortal},
         scene,
         ui::{self, CrosshairMaterial},
         AppExt,
@@ -16,6 +16,8 @@ use bevy_portals::{
 };
 use bevy_rapier3d::prelude::*;
 use bevy_registry_export::*;
+use bevy_tnua::{controller::TnuaControllerPlugin, TnuaUserControlsSystemSet};
+use bevy_tnua_rapier3d::TnuaRapier3dPlugin;
 
 fn main() {
     App::new()
@@ -33,6 +35,8 @@ fn main() {
             }),
             ExportRegistryPlugin::default(),
             ComponentsFromGltfPlugin::default(),
+            TnuaControllerPlugin::default(),
+            TnuaRapier3dPlugin::default(),
         ))
         .register_types() // domain::AppExt
         .init_resource::<ControlsConfig>()
@@ -44,15 +48,15 @@ fn main() {
         .add_plugins((
             UiMaterialPlugin::<CrosshairMaterial>::default(),
             MaterialPlugin::<PortalViewMaterial>::default(),
+            CameraProjectionPlugin::<PortalPerspectiveProjection>::default(),
         ))
         .add_systems(
             Startup,
             (
-                player::setup,
+                player::setup.pipe(ui::setup),
                 scene::setup,
                 input::setup,
                 debug_info::setup,
-                ui::setup,
             ),
         )
         .add_systems(
@@ -61,7 +65,11 @@ fn main() {
                 (
                     input::input_mappings,
                     (
-                        (player::movement, debug_info::player_is_grounded).chain(),
+                        (
+                            player::movement.in_set(TnuaUserControlsSystemSet),
+                            debug_info::player_is_grounded,
+                        )
+                            .chain(),
                         (
                             portal::shoot_portal,
                             (

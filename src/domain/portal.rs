@@ -1,7 +1,9 @@
 use bevy::{
     ecs::query::QuerySingleError,
+    math::{AspectRatio, Vec3A},
     prelude::*,
     render::{
+        camera::CameraProjection,
         render_resource::{
             AsBindGroup, Extent3d, ShaderRef, TextureDescriptor, TextureDimension, TextureFormat,
             TextureUsages,
@@ -23,7 +25,7 @@ use crate::{
     resource::{Controls, Fov},
 };
 
-use super::{player::PlayerCamera, ui::UI_RENDER_LAYER};
+use super::player::PlayerCamera;
 
 pub const DEFAULT_PORTAL_SIZE: Vec2 = Vec2::new(1., 2.);
 pub const PORTAL_RAY_COLLISION_GROUP: Group = Group::GROUP_5;
@@ -207,7 +209,7 @@ pub fn spawn_portal<P: PortalKind>(
         transform,
     } in spawn_portal_events.read().copied()
     {
-        println!("Spawning {}", std::any::type_name::<P>());
+        println!("Spawning {}", std::any::type_name::<P>().rsplit_once("::").unwrap().1);
 
         match portal_q.get_single() {
             Ok(portal) => commands.entity(portal).despawn_recursive(),
@@ -273,13 +275,7 @@ pub fn spawn_portal<P: PortalKind>(
                     ..Default::default()
                 },
                 #[cfg(feature = "debug")]
-                const {
-                    RenderLayers::all()
-                        .without(UI_RENDER_LAYER)
-                        .without(EDITOR_RENDER_LAYER)
-                },
-                #[cfg(not(feature = "debug"))]
-                const { RenderLayers::all().without(UI_RENDER_LAYER) },
+                const { RenderLayers::all().without(EDITOR_RENDER_LAYER) },
             ));
         });
 
@@ -397,8 +393,13 @@ pub fn portal_camera_gizmo(
         gizmos.arrow(gt.translation(), gt.translation() + gt.forward(), color);
         match projection {
             Projection::Perspective(projection) => {
-                gizmos.circle(gt.translation() + projection.near * gt.forward(), Direction3d::new_unchecked(gt.forward()), 0.5, color);
-            },
+                gizmos.circle(
+                    gt.translation() + projection.near * gt.forward(),
+                    Direction3d::new_unchecked(gt.forward()),
+                    0.5,
+                    color,
+                );
+            }
             Projection::Orthographic(_) => unreachable!("Portal camera should be perspective"),
         }
     }
@@ -438,5 +439,97 @@ pub fn remove_portals(
 
     for portal in portal_q.iter() {
         commands.entity(portal).despawn_recursive();
+    }
+}
+
+/// A 3D camera projection in which distant objects appear smaller than close objects.
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component, Default)]
+pub struct PortalPerspectiveProjection {
+    /// The vertical field of view (FOV) in radians.
+    ///
+    /// Defaults to a value of π/4 radians or 45 degrees.
+    pub fov: f32,
+
+    /// The aspect ratio (width divided by height) of the viewing frustum.
+    ///
+    /// Bevy's [`camera_system`](crate::camera::camera_system) automatically
+    /// updates this value when the aspect ratio of the associated window changes.
+    ///
+    /// Defaults to a value of `1.0`.
+    pub aspect_ratio: f32,
+
+    /// The distance from the camera in world units of the viewing frustum's near plane.
+    ///
+    /// Objects closer to the camera than this value will not be visible.
+    ///
+    /// Defaults to a value of `0.1`.
+    pub near: f32,
+
+    pub clip_plane: (f32, Direction3d),
+
+    /// The distance from the camera in world units of the viewing frustum's far plane.
+    ///
+    /// Objects farther from the camera than this value will not be visible.
+    ///
+    /// Defaults to a value of `1000.0`.
+    pub far: f32,
+}
+
+impl CameraProjection for PortalPerspectiveProjection {
+    fn get_projection_matrix(&self) -> Mat4 {
+        Mat4::perspective_infinite_reverse_rh(self.fov, self.aspect_ratio, self.near)
+    }
+
+    fn update(&mut self, width: f32, height: f32) {
+        self.aspect_ratio = AspectRatio::new(width, height).into();
+    }
+
+    fn far(&self) -> f32 {
+        self.far
+    }
+
+    fn get_frustum_corners(&self, z_near: f32, z_far: f32) -> [Vec3A; 8] {
+        // ratio between half the height of a viewport
+        // rect and a distance to a rect with such height
+        let tan_half_fov = (self.fov / 2.).tan();
+
+        let a = z_near.abs() * tan_half_fov;
+        let b = z_far.abs() * tan_half_fov;
+        let aspect_ratio = self.aspect_ratio;
+
+        let near_bottom_right = Vec3A::new(a * aspect_ratio, -a, z_near);
+        let near_top_right = Vec3A::new(a * aspect_ratio, a, z_near);
+        let near_top_left = Vec3A::new(-a * aspect_ratio, a, z_near);
+        let near_bottom_left = Vec3A::new(-a * aspect_ratio, -a, z_near);
+
+        let far_bottom_right = Vec3A::new(b * aspect_ratio, -b, z_far);
+        let far_top_right = Vec3A::new(b * aspect_ratio, b, z_far);
+        let far_top_left = Vec3A::new(-b * aspect_ratio, b, z_far);
+        let far_bottom_left = Vec3A::new(-b * aspect_ratio, -b, z_far);
+
+        // NOTE: These vertices are in the specific order required by [`calculate_cascade`].
+        [
+            near_bottom_right,
+            near_top_right,
+            near_top_left,
+            near_bottom_left,
+            far_bottom_right,
+            far_top_right,
+            far_top_left,
+            far_bottom_left,
+        ]
+    }
+}
+
+impl Default for PortalPerspectiveProjection {
+    fn default() -> Self {
+        Self {
+            fov: std::f32::consts::FRAC_PI_4,
+            aspect_ratio: 1.0,
+            near: 0.1,
+            clip_plane: (0.0, Direction3d::NEG_Z),
+            far: 1000.0,
+        }
     }
 }
