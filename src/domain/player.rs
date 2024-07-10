@@ -104,7 +104,7 @@ pub fn setup(
                 .without(PLAYER_RENDER_LAYER)
                 .without(EDITOR_RENDER_LAYER as Layer),
             #[cfg(not(feature = "debug"))]
-            RenderLayers::all().without(PLAYER_RENDER_LAYER),
+            ALL_RENDER_LAYERS.clone().without(PLAYER_RENDER_LAYER),
         ))
         .id();
     commands

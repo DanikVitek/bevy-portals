@@ -72,6 +72,7 @@ impl Default for MouseSensitivity {
 }
 
 #[derive(Debug, Clone, Copy, Resource)]
+#[repr(transparent)]
 pub struct FieldOfView(f32);
 
 impl FieldOfView {
@@ -87,11 +88,11 @@ impl FieldOfView {
         Self(radians)
     }
 
-    pub fn degrees(&self) -> f32 {
+    pub fn degrees(self) -> f32 {
         self.0.to_degrees()
     }
 
-    pub fn radians(&self) -> f32 {
+    pub fn radians(self) -> f32 {
         self.0
     }
 }

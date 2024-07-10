@@ -6,6 +6,9 @@ use bevy::{
 
 use crate::resource::{Controls, ControlsConfig};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SystemSet)]
+pub struct ButtonInputReactions;
+
 pub fn setup(
     mut window_query: Query<&mut Window, With<PrimaryWindow>>,
     mut exit: EventWriter<AppExit>,

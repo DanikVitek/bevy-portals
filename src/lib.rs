@@ -1,18 +1,26 @@
 pub mod domain;
 pub mod resource;
-// pub mod physics;
 
 use bevy::{prelude::*, render::view::RenderLayers};
+use cfg_if::cfg_if;
 use once_cell::sync::Lazy;
 
 pub static ALL_RENDER_LAYERS: Lazy<RenderLayers> = Lazy::new(|| {
+    #[cfg(feature = "debug")]
     use bevy_editor_pls::default_windows::cameras::EDITOR_RENDER_LAYER;
     use domain::{player::PLAYER_RENDER_LAYER, scene::GROUND_RENDER_LAYER};
 
-    RenderLayers::none()
+    let rl = RenderLayers::none()
         .with(GROUND_RENDER_LAYER)
-        .with(PLAYER_RENDER_LAYER)
-        .with(EDITOR_RENDER_LAYER)
+        .with(PLAYER_RENDER_LAYER);
+
+    cfg_if! {
+        if #[cfg(feature = "debug")] {
+            rl.with(EDITOR_RENDER_LAYER)
+        } else {
+            rl
+        }
+    }
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

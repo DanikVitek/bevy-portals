@@ -1,14 +1,20 @@
 use bevy::{
+    core_pipeline::{
+        core_3d::graph::Core3d,
+        tonemapping::{DebandDither, Tonemapping},
+    },
     ecs::query::QuerySingleError,
     math::{AspectRatio, Vec3A},
+    pbr::PbrProjectionPlugin,
     prelude::*,
     render::{
-        camera::CameraProjection,
+        camera::{CameraMainTextureUsages, CameraProjection, CameraRenderGraph, Exposure},
+        primitives::Frustum,
         render_resource::{
             AsBindGroup, Extent3d, ShaderRef, TextureDescriptor, TextureDimension, TextureFormat,
             TextureUsages,
         },
-        view::Layer,
+        view::{ColorGrading, VisibleEntities},
     },
     window::{PrimaryWindow, WindowResized},
 };
@@ -21,10 +27,11 @@ use bevy_rapier3d::{
 };
 
 use crate::{
-    domain::player::PLAYER_COLLISION_GROUP,
+    domain::{debug_info, input, player::PLAYER_COLLISION_GROUP},
     resource::{Controls, Fov},
-    ALL_RENDER_LAYERS,
 };
+#[cfg(feature = "debug")]
+use crate::ALL_RENDER_LAYERS;
 
 use super::player::PlayerCamera;
 
@@ -50,6 +57,8 @@ pub struct Portal {
 pub trait PortalKind: Component + Copy {
     type Pair: PortalKind<Pair = Self>;
 
+    fn new() -> Self;
+
     fn color() -> Color;
 }
 
@@ -64,6 +73,10 @@ pub struct Portal2;
 impl PortalKind for Portal1 {
     type Pair = Portal2;
 
+    fn new() -> Self {
+        Self
+    }
+
     fn color() -> Color {
         Color::srgb(0.6, 0.7, 0.8)
     }
@@ -71,6 +84,10 @@ impl PortalKind for Portal1 {
 
 impl PortalKind for Portal2 {
     type Pair = Portal1;
+
+    fn new() -> Self {
+        Self
+    }
 
     fn color() -> Color {
         Color::srgb(0.8, 0.7, 0.6)
@@ -97,13 +114,12 @@ pub struct SpawnPortal<P: PortalKind> {
 }
 
 #[allow(clippy::type_complexity)]
-pub fn shoot_portal(
+pub fn shoot_portal<P1: PortalKind<Pair = P2>, P2: PortalKind<Pair = P1>>(
     controls: Res<Controls>,
     camera_q: Query<(&Camera, &GlobalTransform), With<PlayerCamera>>,
     portal_surface_q: Query<(&GlobalTransform, &PortalSurface)>,
     rapier_ctx: Res<RapierContext>,
-    mut spawn_portal1_evt: EventWriter<SpawnPortal<Portal1>>,
-    mut spawn_portal2_evt: EventWriter<SpawnPortal<Portal2>>,
+    mut commands: Commands,
 ) {
     if !controls.shoot1 && !controls.shoot2 {
         return;
@@ -175,13 +191,13 @@ pub fn shoot_portal(
         (clamped_point - transform.translation()) + transform.back() * 0.01;
 
     if controls.shoot1 {
-        spawn_portal1_evt.send(SpawnPortal {
-            portal_kind: Portal1,
+        commands.trigger(SpawnPortal {
+            portal_kind: P1::new(),
             transform: portal_transform,
         });
     } else if controls.shoot2 {
-        spawn_portal2_evt.send(SpawnPortal {
-            portal_kind: Portal2,
+        commands.trigger(SpawnPortal {
+            portal_kind: P2::new(),
             transform: portal_transform,
         });
     }
@@ -189,7 +205,7 @@ pub fn shoot_portal(
 
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_portal<P: PortalKind>(
-    mut spawn_portal_events: EventReader<SpawnPortal<P>>,
+    spawn_portal: Trigger<SpawnPortal<P>>,
     portal_q: Query<Entity, With<P>>,
     mut pair_portal_q: Query<(Entity, &mut Portal), With<P::Pair>>,
     mut commands: Commands,
@@ -198,122 +214,156 @@ pub fn spawn_portal<P: PortalKind>(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
     fov: Res<Fov>,
-    portal_cam_q: Query<(&Parent, &Camera), With<PortalCamera>>,
+    mut portal_cam_q: Query<(&Parent, &mut Camera), With<PortalCamera>>,
     window_q: Query<&Window, With<PrimaryWindow>>,
 ) {
     let Ok(window) = window_q.get_single() else {
         return;
     };
 
-    for SpawnPortal {
+    let &SpawnPortal {
         portal_kind,
         transform,
-    } in spawn_portal_events.read().copied()
-    {
-        println!(
-            "Spawning {}",
-            std::any::type_name::<P>().rsplit_once("::").unwrap().1
-        );
+    } = spawn_portal.event();
 
-        match portal_q.get_single() {
-            Ok(portal) => commands.entity(portal).despawn_recursive(),
-            Err(err @ QuerySingleError::MultipleEntities(_)) => unreachable!("{err}"),
-            Err(QuerySingleError::NoEntities(_)) => {}
-        }
+    println!(
+        "Spawning {}",
+        std::any::type_name::<P>().rsplit_once("::").unwrap().1
+    );
 
-        let pair = pair_portal_q.iter_mut().next();
+    match portal_q.get_single() {
+        Ok(portal) => commands.entity(portal).despawn_recursive(),
+        Err(err @ QuerySingleError::MultipleEntities(_)) => unreachable!("{err}"),
+        Err(QuerySingleError::NoEntities(_)) => {}
+    }
 
-        let portal_view_image = {
-            let size = Extent3d {
-                width: window.physical_width(),
-                height: window.physical_height(),
-                ..Default::default()
-            };
-            let mut img = Image {
-                texture_descriptor: TextureDescriptor {
-                    label: None,
-                    size,
-                    dimension: TextureDimension::D2,
-                    format: TextureFormat::Rgba8UnormSrgb,
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    usage: TextureUsages::TEXTURE_BINDING
-                        | TextureUsages::COPY_DST
-                        | TextureUsages::RENDER_ATTACHMENT,
-                    view_formats: &[],
-                },
-                ..Default::default()
-            };
-            img.resize(size);
-            img
+    let pair = pair_portal_q.iter_mut().next();
+
+    let portal_view_image = {
+        let size = Extent3d {
+            width: window.physical_width(),
+            height: window.physical_height(),
+            ..Default::default()
         };
-
-        let portal_view_image_handle = images.add(portal_view_image);
-
-        let mut new_portal = commands.spawn((
-            Name::new(std::any::type_name::<P>().rsplit_once("::").unwrap().1),
-            Portal {
-                pair: pair.iter().map(|(entity, _)| entity).copied().next(),
+        let mut img = Image {
+            texture_descriptor: TextureDescriptor {
+                label: None,
+                size,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8UnormSrgb,
+                mip_level_count: 1,
+                sample_count: 1,
+                usage: TextureUsages::TEXTURE_BINDING
+                    | TextureUsages::COPY_DST
+                    | TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
             },
-            portal_kind,
-            TransformBundle::from_transform(transform),
-            VisibilityBundle::default(),
-            meshes.add(Plane3d::new(Vec3::Z, Vec2::new(0.5, 1.))),
-        ));
-        new_portal.with_children(|child| {
-            child.spawn((
-                Name::new("Portal Camera"),
-                PortalCamera,
-                Camera3dBundle {
-                    projection: PerspectiveProjection {
-                        fov: fov.radians(),
-                        ..Default::default()
-                    }
-                    .into(),
-                    camera: Camera {
-                        order: -1,
-                        target: portal_view_image_handle.clone().into(),
-                        ..Default::default()
-                    },
+            ..Default::default()
+        };
+        img.resize(size);
+        img
+    };
+
+    let portal_view_image_handle = images.add(portal_view_image);
+
+    let mut new_portal = commands.spawn((
+        Name::new(std::any::type_name::<P>().rsplit_once("::").unwrap().1),
+        Portal {
+            pair: pair.iter().map(|(entity, _)| entity).copied().next(),
+        },
+        portal_kind,
+        TransformBundle::from_transform(transform),
+        VisibilityBundle::default(),
+        meshes.add(Plane3d::new(Vec3::Z, Vec2::new(0.5, 1.))),
+    ));
+    new_portal.with_children(|child| {
+        child.spawn((
+            Name::new("Portal Camera"),
+            PortalCamera,
+            PortalCamera3dBundle {
+                projection: PortalPerspectiveProjection {
+                    fov: fov.radians(),
                     ..Default::default()
                 },
-                #[cfg(feature = "debug")]
-                ALL_RENDER_LAYERS
-                    .clone()
-                    .without(EDITOR_RENDER_LAYER as Layer),
-            ));
-        });
-
-        match pair {
-            Some((pair_entity, mut pair_portal)) => {
-                _ = pair_portal.pair.replace(new_portal.id());
-
-                new_portal.insert(portal_view_materials.add(PortalViewMaterial {
-                    portal_view: portal_view_image_handle,
-                }));
-
-                commands
-                    .entity(pair_entity)
-                    .remove::<Handle<StandardMaterial>>()
-                    .insert(
-                        portal_view_materials.add(PortalViewMaterial {
-                            portal_view: portal_cam_q
-                                .iter()
-                                .find_map(|(parent, cam)| {
-                                    (parent.get() == pair_entity)
-                                        .then(|| cam.target.as_image().unwrap())
-                                })
-                                .unwrap()
-                                .to_owned(),
-                        }),
-                    );
-            }
-            None => {
-                new_portal.insert(standard_materials.add(StandardMaterial {
-                    base_color: P::color(),
+                camera: Camera {
+                    order: -1,
+                    is_active: pair.is_some(),
+                    target: portal_view_image_handle.clone().into(),
                     ..Default::default()
+                },
+                ..Default::default()
+            },
+            #[cfg(feature = "debug")]
+            ALL_RENDER_LAYERS.clone().without(EDITOR_RENDER_LAYER),
+        ));
+    });
+
+    match pair {
+        Some((pair_entity, mut pair_portal)) => {
+            _ = pair_portal.pair.replace(new_portal.id());
+
+            new_portal.insert(portal_view_materials.add(PortalViewMaterial {
+                portal_view: portal_view_image_handle,
+            }));
+
+            let mut pair_cam = portal_cam_q
+                .iter_mut()
+                .find_map(|(parent, cam)| (parent.get() == pair_entity).then_some(cam))
+                .unwrap();
+
+            pair_cam.is_active = true;
+
+            commands
+                .entity(pair_entity)
+                .remove::<Handle<StandardMaterial>>()
+                .insert(portal_view_materials.add(PortalViewMaterial {
+                    portal_view: pair_cam.target.as_image().unwrap().to_owned(),
                 }));
-            }
+        }
+        None => {
+            new_portal.insert(standard_materials.add(StandardMaterial {
+                base_color: P::color(),
+                ..Default::default()
+            }));
+        }
+    }
+}
+
+/// The camera coordinate space is right-handed x-right, y-up, z-back.
+/// This means "forward" is -Z.
+#[derive(Bundle, Clone)]
+pub struct PortalCamera3dBundle {
+    pub camera: Camera,
+    pub camera_render_graph: CameraRenderGraph,
+    pub projection: PortalPerspectiveProjection,
+    pub visible_entities: VisibleEntities,
+    pub frustum: Frustum,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub camera_3d: Camera3d,
+    pub tonemapping: Tonemapping,
+    pub deband_dither: DebandDither,
+    pub color_grading: ColorGrading,
+    pub exposure: Exposure,
+    pub main_texture_usages: CameraMainTextureUsages,
+}
+
+impl Default for PortalCamera3dBundle {
+    fn default() -> Self {
+        Self {
+            camera_render_graph: CameraRenderGraph::new(Core3d),
+            camera: Default::default(),
+            projection: PortalPerspectiveProjection::default(),
+            visible_entities: Default::default(),
+            frustum: Default::default(),
+            transform: Default::default(),
+            global_transform: Default::default(),
+            camera_3d: Default::default(),
+            tonemapping: Default::default(),
+            color_grading: Default::default(),
+            exposure: Default::default(),
+            main_texture_usages: Default::default(),
+            deband_dither: DebandDither::Enabled,
         }
     }
 }
@@ -327,7 +377,7 @@ pub struct PortalViewMaterial {
 
 impl Material for PortalViewMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/portal_view.wgsl".into()
+        ShaderRef::from("shaders/portal_view.wgsl")
     }
 
     fn alpha_mode(&self) -> AlphaMode {
@@ -337,7 +387,10 @@ impl Material for PortalViewMaterial {
 
 pub fn move_portal_camera(
     portal_q: Query<(Entity, &GlobalTransform, &Portal)>,
-    mut portal_cam_q: Query<(&mut Transform, &mut Projection, &Parent), With<PortalCamera>>,
+    mut portal_cam_q: Query<
+        (&mut Transform, &mut PortalPerspectiveProjection, &Parent),
+        With<PortalCamera>,
+    >,
     player_cam_q: Query<&GlobalTransform, With<PlayerCamera>>,
 ) {
     let player_cam_gt = player_cam_q.single();
@@ -370,22 +423,19 @@ pub fn move_portal_camera(
 
         // TODO: update near plane so that it is coplanar with the portal's mesh
 
-        match &mut *projection {
-            Projection::Perspective(projection) => {
-                projection.near = (pair_portal_gt.translation()
-                    - new_portal_cam_gt_mat.w_axis.xyz())
-                .length()
-                .clamp(0.05, projection.far)
-            }
-            Projection::Orthographic(_) => unreachable!("Portal camera should be perspective"),
-        }
+        projection.near = (pair_portal_gt.translation() - new_portal_cam_gt_mat.w_axis.xyz())
+            .length()
+            .clamp(0.05, projection.far);
     }
 }
 
 pub fn portal_camera_gizmo(
     portal1_q: Query<&Portal1>,
     portal2_q: Query<&Portal2>,
-    portal_cam_q: Query<(&GlobalTransform, &Projection, &Parent), With<PortalCamera>>,
+    portal_cam_q: Query<
+        (&GlobalTransform, &PortalPerspectiveProjection, &Parent),
+        With<PortalCamera>,
+    >,
     mut gizmos: Gizmos,
 ) {
     for (gt, projection, portal) in portal_cam_q.iter() {
@@ -394,19 +444,16 @@ pub fn portal_camera_gizmo(
             .map(|_| Portal1::color())
             .or_else(|_| portal2_q.get(portal.get()).map(|_| Portal2::color()))
             .unwrap();
+
         gizmos.cuboid(*gt, color);
         gizmos.arrow(gt.translation(), gt.translation() + *gt.forward(), color);
-        match projection {
-            Projection::Perspective(projection) => {
-                gizmos.circle(
-                    gt.translation() + projection.near * gt.forward(),
-                    gt.forward(),
-                    0.5,
-                    color,
-                );
-            }
-            Projection::Orthographic(_) => unreachable!("Portal camera should be perspective"),
-        }
+
+        gizmos.circle(
+            gt.translation() + projection.near * gt.forward(),
+            gt.forward(),
+            0.5,
+            color,
+        );
     }
 }
 
@@ -471,7 +518,7 @@ pub struct PortalPerspectiveProjection {
     /// Defaults to a value of `0.1`.
     pub near: f32,
 
-    pub clip_plane: (f32, Dir3),
+    pub portal_frame: (f32, Plane3d),
 
     /// The distance from the camera in world units of the viewing frustum's far plane.
     ///
@@ -533,8 +580,58 @@ impl Default for PortalPerspectiveProjection {
             fov: std::f32::consts::FRAC_PI_4,
             aspect_ratio: 1.0,
             near: 0.1,
-            clip_plane: (0.0, Dir3::NEG_Z),
+            portal_frame: (
+                0.0,
+                Plane3d {
+                    normal: Dir3::Z,
+                    half_size: Vec2::new(0.5, 1.),
+                },
+            ),
             far: 1000.0,
+        }
+    }
+}
+
+pub struct PortalPlugin<P1: PortalKind<Pair = P2>, P2: PortalKind<Pair = P1>> {
+    _p1: std::marker::PhantomData<P1>,
+    _p2: std::marker::PhantomData<P2>,
+}
+
+impl<P1: PortalKind<Pair = P2>, P2: PortalKind<Pair = P1>> Default for PortalPlugin<P1, P2> {
+    fn default() -> Self {
+        Self {
+            _p1: Default::default(),
+            _p2: Default::default(),
+        }
+    }
+}
+
+impl<P1: PortalKind<Pair = P2>, P2: PortalKind<Pair = P1>> Plugin for PortalPlugin<P1, P2> {
+    fn build(&self, app: &mut App) {
+        use bevy::render::camera::CameraProjectionPlugin;
+
+        app.register_portal_types()
+            .add_event::<SpawnPortal<P1>>()
+            .add_event::<SpawnPortal<P2>>()
+            .add_systems(
+                Update,
+                (
+                    (shoot_portal::<P1, P2>, remove_portals).in_set(input::ButtonInputReactions),
+                    debug_info::portal_surface_gizmo,
+                    debug_info::portal_gizmo,
+                ),
+            )
+            .observe(spawn_portal::<P1>)
+            .observe(spawn_portal::<P2>);
+
+        if !app.is_plugin_added::<MaterialPlugin<PortalViewMaterial>>() {
+            app.add_plugins(MaterialPlugin::<PortalViewMaterial>::default());
+        }
+        if !app.is_plugin_added::<CameraProjectionPlugin<PortalPerspectiveProjection>>() {
+            app.add_plugins(CameraProjectionPlugin::<PortalPerspectiveProjection>::default());
+        }
+        if !app.is_plugin_added::<PbrProjectionPlugin<PortalPerspectiveProjection>>() {
+            app.add_plugins(PbrProjectionPlugin::<PortalPerspectiveProjection>::default());
         }
     }
 }

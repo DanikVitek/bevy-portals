@@ -1,4 +1,6 @@
-use bevy::{prelude::*, render::camera::CameraProjectionPlugin};
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use bevy::prelude::*;
 #[cfg(feature = "debug")]
 use bevy::window::WindowResolution;
 #[cfg(feature = "debug")]
@@ -6,8 +8,10 @@ use bevy_editor_pls::EditorPlugin;
 // use bevy_gltf_components::ComponentsFromGltfPlugin;
 use bevy_portals::{
     domain::{
-        debug_info, input, player,
-        portal::{self, Portal1, Portal2, PortalPerspectiveProjection, PortalViewMaterial, SpawnPortal},
+        debug_info,
+        input::{self, ButtonInputReactions},
+        player,
+        portal::{self, Portal1, Portal2, PortalPlugin},
         scene,
         ui::{self, CrosshairMaterial},
         AppExt,
@@ -43,12 +47,9 @@ fn main() {
         .init_resource::<MouseSensitivity>()
         .init_resource::<Fov>()
         .init_resource::<Controls>()
-        .add_event::<SpawnPortal<Portal1>>()
-        .add_event::<SpawnPortal<Portal2>>()
         .add_plugins((
             UiMaterialPlugin::<CrosshairMaterial>::default(),
-            MaterialPlugin::<PortalViewMaterial>::default(),
-            CameraProjectionPlugin::<PortalPerspectiveProjection>::default(),
+            PortalPlugin::<Portal1, Portal2>::default(),
         ))
         .add_systems(
             Startup,
@@ -62,32 +63,17 @@ fn main() {
         .add_systems(
             Update,
             (
+                input::input_mappings.before(ButtonInputReactions),
                 (
-                    input::input_mappings,
-                    (
-                        (
-                            player::movement.in_set(TnuaUserControlsSystemSet),
-                            debug_info::player_is_grounded,
-                        )
-                            .chain(),
-                        (
-                            portal::shoot_portal,
-                            (
-                                portal::spawn_portal::<Portal1>,
-                                portal::spawn_portal::<Portal2>,
-                            ),
-                        )
-                            .chain(),
-                        portal::remove_portals,
-                    ),
+                    player::movement.in_set(TnuaUserControlsSystemSet),
+                    debug_info::player_is_grounded,
                 )
-                    .chain(),
+                    .chain()
+                    .in_set(ButtonInputReactions),
                 player::rotation,
                 input::cursor_grab,
                 input::cursor_ungrab,
                 input::exit_on_primary_close,
-                debug_info::portal_surface_gizmo,
-                debug_info::portal_gizmo,
             ),
         )
         .add_systems(PreUpdate, portal::resize_portal_view_image)
